@@ -1,0 +1,18 @@
+import React from "react";
+import { useLocation } from "react-router-dom";
+
+export default function PageTransition({ children }) {
+  const location = useLocation();
+
+  return (
+    <div
+      key={location.pathname}
+      className="page-transition"
+      style={{
+        animation: "pageSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}

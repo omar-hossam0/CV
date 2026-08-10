@@ -1,0 +1,65 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+.Python
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+*.pth
+*.pkl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Large files (model weights, data, venv)
+model matching/*.pkl
+model matching/*.pth
+model matching/*.zip
+model matching/*.csv
+model matching/data*.csv
+model matching/__pycache__/
+model matching/bert-cache/
+model matching/cv-job-matching-colab/
+Backend/uploads/
+ml-service/.venv/
+cv/cv/*.csv
+cv/cv/*.zip
+cv/
+
+# Misc local folders
+run project/
+
+# Python cache inside services
+ml-service/__pycache__/
+Backend/**/__pycache__/
+
+# Python Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+
+# Large model files
+*.keras

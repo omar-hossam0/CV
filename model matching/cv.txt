@@ -1,0 +1,96 @@
+Artificial Intelligence undergraduate with experience in back-end and full-stack development using Node.js, Express.js, and
+MongoDB. Skilled in RESTful API design, role-based access control, and database optimization with practical exposure to realtime data processing and scalable architectures. Experienced in delivering projects across complaint management, computer
+vision–based exam monitoring, and airport surveillance systems. Certified in Big Data technologies with strong problem-solving,
+Git/GitHub, and collaborative development skills.
+Baraa Wael
++201029290728 | baraawael7901@gmail.com | LinkedIn | GitHub | GitLab | Mansoura, Dakahlia, Egypt
+Web Application Developer
+KEY COMPETENCIES
+ PROFESSIONAL EXPERIENCE
+Node.js Development
+Express.js Framework
+MongoDB Database Design & Integration
+Data Modeling & Schema Design
+RESTful API Development
+Authentication & Authorization (JWT, OAuth)
+Database Query Optimization
+Backend Architecture Design
+Role-Based Access Control (RBAC)
+API Security & Data Validation
+Python, JavaScript
+Git & GitHub
+Socket.io,Docker, Linux, CI/CDPipelines
+Problem Solving
+Communication Skills
+Freelance Web Application Developer 2024 – Present
+Develop and deliver custom database-driven web applications tailored to client requirements.
+Design and implement secure, scalable RESTful APIs to support dynamic front-end features.
+Integrate interactive dashboards for real-time data visualization and performance tracking.
+Optimize database queries and workflows to ensure efficient, seamless data flow across systems.
+Apply responsive design principles to deliver cross-platform, user-friendly web applications.
+ EDUCATION
+Bachelor of Artificial Intelligence
+Delta University for Science and Technology
+GPA: 3.3 / 4.0
+2027
+Computer Vision Developer – Faculty of AI, Delta University 2024
+Engineered a real-time facial tracking and gaze analysis module to support secure online examination environments.
+Deployed the module into a web-based platform with integrated full-screen lockdown and automated reporting of suspicious
+activity.
+Designed and optimized computer vision pipelines with Python and OpenCV to enhance detection precision and reliability.
+Collaborated with a multidisciplinary team, strengthening expertise in version control and collaborative workflows using Git
+and GitHub.
+Gained practical experience in AI system deployment and seamless integration within production-level applications.
+Big Data Trainee – NTI 2025 – Aug 2025
+Completed hands-on training in Big Data technologies with a focus on data processing, storage, and analytics.
+Gained practical experience with the Hadoop ecosystem, Spark, and distributed computing frameworks.
+Applied Big Data concepts to backend scenarios, enhancing proficiency in scalable, data-driven applications.
+Designed and executed data workflows for batch and real-time processing to simulate industry use cases.
+Strengthened problem-solving and technical skills by working on end-to-end data pipelines and system performance
+optimization.
+Backend Developer – Self-Learning Projects 2024 – Present
+Developed multiple back-end and full-stack applications leveraging Node.js, Express.js, and MongoDB.
+Designed and implemented RESTful APIs, integrated databases, and applied Role-Based Access Control (RBAC) across projects.
+Utilized Git and GitHub for version control, collaborative workflows, and project documentation.
+Organize and promote student activities, workshops, and technical events while managing public relations to increase visibility
+and community engagement.
+Enhance communication, collaboration, and teamwork skills through active involvement in volunteer initiatives.
+PROJECTS
+Arabic: Native English: Professional Working Proficiency
+LANGUAGE
+VOLUNTEERING
+Public Relations Volunteer | IEEE Student Branch 2024 – Present
+Led back-end development and integrated a computer vision module to detect real-time cheating behaviors during exam.
+Engineered optimized data pipelines with automated alert notifications for immediate incident reporting.
+Ensured robust back-end and front-end integration to enable seamless live monitoring and user interaction.
+Cheating Detection System (Team Project – Grade: A)
+Python, OpenCV, Web Integration
+Designed and implemented a facial recognition surveillance system to identify criminals and fraud suspects in airport
+environments.
+Developed a live camera streaming dashboard to monitor, track, and log entry/exit activity in real time.
+Built an interactive admin dashboard with event logs and real-time suspect tracking, delivering a production-ready full-stack
+solution with a robust back end, clean UI, and advanced computer vision capabilities.
+Airport Criminal & Fraud Detection System (Solo Project – Grade: A)
+Developed a comprehensive system with multiple modules:
+VIP Customers: Managed customer profiles and applied automated loyalty discounts.
+Inventory Management: Tracked stock levels, suppliers, and product details.
+Sales: Recorded daily sales, applied discounts, and generated detailed reports.
+Cashier (POS): Built a user-friendly interface with QR Code scanning for faster checkout.
+Implemented role-based access control for admins, cashiers, and inventory managers.
+Integrated real-time database updates to ensure stock and sales accuracy.
+Supermarket Management System with QR Code Support (Freelance Project)
+Engineered a full-stack web solution to streamline complaint management in the hospitality industry.
+Implemented Role-Based Access Control (RBAC) to define permissions for customers, employees, and management.
+Designed an escalation workflow enabling complaint submission, tracking, and resolution.
+Integrated real-time notifications and dynamic status updates to improve responsiveness.
+Structured MongoDB with detailed history logs to ensure traceability and data integrity.
+Your Solution - Complaint Management System (Full-Stack Web App) (Freelance Project)
+Backend: Node.js with Express.js | Frontend: Next.js | Database: MongoDB LINK
+Designed and deployed relational database systems to manage hospital, factory, and school operations efficiently.
+Built desktop applications with C# (Windows Forms) to provide intuitive user interfaces for staff and administrators.
+Optimized database schemas and validation logic, reducing data entry errors by ~30% and improving overall reliability.
+Database Systems for Hospital, Factory, and School (Desktop Applications)
+MySQL, C#, Visual Studio
+CERTIFICATIONS
+Node.js, Express.js, and MongoDB Development
+Problem Solving & Logical Thinking Skills

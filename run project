@@ -1,0 +1,9 @@
+cd "D:\Dulms\Level3 term(1)\Project\CV project\CV-project-\Backend\scripts"
+python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+
+cd "D:\Dulms\Level3 term(1)\Project\CV project\CV-project-\my-react-app"
+npm run dev
+
+$env:HF_HUB_OFFLINE='1'; $env:TRANSFORMERS_OFFLINE='1'; $env:SENTENCE_TRANSFORMERS_HOME='D:\Dulms\Level3 term(1)\Project\CV project\CV-project-\model matching\bert-cache'; $env:HF_HOME=$env:SENTENCE_TRANSFORMERS_HOME; npm run dev
+
+$env:HF_HUB_OFFLINE='1'; $env:TRANSFORMERS_OFFLINE='1'; $env:SENTENCE_TRANSFORMERS_HOME='D:\Dulms\Level3 term(1)\Project\CV project\CV-project-\model matching\bert-cache'; $env:HF_HOME=$env:SENTENCE_TRANSFORMERS_HOME; npm run dev

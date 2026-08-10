@@ -1,0 +1,7 @@
+{
+    "cv_text": "Artificial Intelligence undergraduate with experience in back-end development using Node.js, Express.js, and MongoDB.",
+    "job_descriptions": [
+        "Back-End Developer (Node.js & Express) Skills: Node.js, Express.js, MongoDB/MySQL, JWT, Git, REST API design."
+    ],
+    "top_k": 10
+}

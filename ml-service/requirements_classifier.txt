@@ -1,0 +1,19 @@
+# CV Classification Service Requirements
+# Install using: pip install -r requirements_classifier.txt
+
+# Core dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+python-multipart==0.0.6
+
+# Deep Learning
+tensorflow>=2.16.0
+# If you have NVIDIA GPU, install tensorflow with GPU support
+numpy>=1.24.0,<2.0.0
+
+# AI/LLM Integration (Optional but recommended)
+groq==0.4.1
+
+# Text processing
+python-dotenv==1.0.0
