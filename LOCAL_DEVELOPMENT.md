@@ -22,8 +22,7 @@ CV/
 ├── model-1-cv-matcher/   # ML Model 1: CV-Job Matching
 ├── model-2-cv-classifier/# ML Model 2: CV Classification
 ├── model-3-skill-analyzer/# ML Model 3: Skill Analysis
-├── model-4-chat-model/   # ML Model 4: Career Chat
-└── ml-service/           # Legacy ML service (deprecated)
+└── model-4-chat-model/   # ML Model 4: Career Chat
 ```
 
 ## Port Configuration

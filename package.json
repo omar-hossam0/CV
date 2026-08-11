@@ -15,8 +15,8 @@
     "install:all": "npm install",
     "backend:dev": "npm run dev --workspace Backend",
     "frontend:dev": "npm run dev --workspace Frontend",
-    "classifier:dev": "cd ml-service && python cv_classifier_service.py",
-    "analyzer:dev": "cd ml-service && python skill_analyzer_service.py"
+    "classifier:dev": "cd model-2-cv-classifier && python cv_classifier.py",
+    "analyzer:dev": "cd model-3-skill-analyzer && python skill_analyzer.py"
   },
   "devDependencies": {
     "concurrently": "^9.0.1"

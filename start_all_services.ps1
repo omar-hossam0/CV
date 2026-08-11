@@ -1,5 +1,5 @@
 # Run All Services - CV Project
-# This script starts all services needed for CV Classification
+# This script starts all services needed for the CV Matching Platform
 
 Write-Host ""
 Write-Host "================================================================" -ForegroundColor Cyan
@@ -29,10 +29,12 @@ function Start-ServiceInNewTerminal {
 }
 
 Write-Host "Services to start:" -ForegroundColor Green
-Write-Host "   1. CV Classifier Service (Python) - Port 5002" -ForegroundColor White
-Write-Host "   2. Skill Analyzer Service (TensorFlow) - Port 5003" -ForegroundColor White
-Write-Host "   3. Backend Server (Node.js) - Port 5000" -ForegroundColor White
-Write-Host "   4. Frontend (React) - Port 5174" -ForegroundColor White
+Write-Host "   1. Backend Server (Node.js) - Port 5000" -ForegroundColor White
+Write-Host "   2. Model 1 - CV-Job Matcher (Python) - Port 5001" -ForegroundColor White
+Write-Host "   3. Model 2 - CV Classifier (Python) - Port 5002" -ForegroundColor White
+Write-Host "   4. Model 3 - Skill Analyzer (Python) - Port 5003" -ForegroundColor White
+Write-Host "   5. Model 4 - Chat Model (Python) - Port 5004" -ForegroundColor White
+Write-Host "   6. Frontend (React) - Port 5174" -ForegroundColor White
 Write-Host ""
 
 $start = Read-Host "Start all services? (Y/n)"
@@ -40,40 +42,54 @@ $start = Read-Host "Start all services? (Y/n)"
 if ($start -eq "" -or $start -eq "Y" -or $start -eq "y") {
     
     Write-Host ""
-    Write-Host "🚀 Starting services..." -ForegroundColor Cyan
+    Write-Host "Starting services..." -ForegroundColor Cyan
     Write-Host ""
-    
-    # Start CV Classifier Service
-    $classifierPath = Join-Path (Get-Location) "ml-service"
-    $service1 = Start-ServiceInNewTerminal -Title "CV Classifier Service" -Command "python cv_classifier_service.py" -WorkingDirectory $classifierPath
-    $services += $service1
-    Start-Sleep -Seconds 2
-    
-    # Start Skill Analyzer Service
-    $analyzerPath = Join-Path (Get-Location) "ml-service"
-    $service2 = Start-ServiceInNewTerminal -Title "Skill Analyzer Service" -Command "python skill_analyzer_service.py" -WorkingDirectory $analyzerPath
-    $services += $service2
-    Start-Sleep -Seconds 2
     
     # Start Backend
     $backendPath = Join-Path (Get-Location) "Backend"
-    $service3 = Start-ServiceInNewTerminal -Title "Backend Server" -Command "npm start" -WorkingDirectory $backendPath
+    $service1 = Start-ServiceInNewTerminal -Title "Backend Server" -Command "npm start" -WorkingDirectory $backendPath
+    $services += $service1
+    Start-Sleep -Seconds 2
+    
+    # Start Model 1 (CV-Job Matcher)
+    $model1Path = Join-Path (Get-Location) "model-1-cv-matcher"
+    $service2 = Start-ServiceInNewTerminal -Title "Model 1 - CV-Job Matcher" -Command "python cv_job_matcher.py" -WorkingDirectory $model1Path
+    $services += $service2
+    Start-Sleep -Seconds 2
+    
+    # Start Model 2 (CV Classifier)
+    $model2Path = Join-Path (Get-Location) "model-2-cv-classifier"
+    $service3 = Start-ServiceInNewTerminal -Title "Model 2 - CV Classifier" -Command "python cv_classifier.py" -WorkingDirectory $model2Path
     $services += $service3
     Start-Sleep -Seconds 2
     
-    # Start Frontend
-    $frontendPath = Join-Path (Get-Location) "my-react-app"
-    $service4 = Start-ServiceInNewTerminal -Title "Frontend Dev Server" -Command "npm run dev" -WorkingDirectory $frontendPath
+    # Start Model 3 (Skill Analyzer)
+    $model3Path = Join-Path (Get-Location) "model-3-skill-analyzer"
+    $service4 = Start-ServiceInNewTerminal -Title "Model 3 - Skill Analyzer" -Command "python skill_analyzer.py" -WorkingDirectory $model3Path
     $services += $service4
+    Start-Sleep -Seconds 2
+    
+    # Start Model 4 (Chat Model)
+    $model4Path = Join-Path (Get-Location) "model-4-chat-model"
+    $service5 = Start-ServiceInNewTerminal -Title "Model 4 - Chat Model" -Command "python chat_model.py" -WorkingDirectory $model4Path
+    $services += $service5
+    Start-Sleep -Seconds 2
+    
+    # Start Frontend
+    $frontendPath = Join-Path (Get-Location) "Frontend"
+    $service6 = Start-ServiceInNewTerminal -Title "Frontend Dev Server" -Command "npm run dev" -WorkingDirectory $frontendPath
+    $services += $service6
     
     Write-Host ""
     Write-Host "All services started successfully!" -ForegroundColor Green
     Write-Host ""
     Write-Host "Service URLs:" -ForegroundColor Cyan
-    Write-Host "   Frontend:          http://localhost:5174" -ForegroundColor White
     Write-Host "   Backend API:       http://localhost:5000" -ForegroundColor White
-    Write-Host "   CV Classifier:     http://localhost:5002" -ForegroundColor White
-    Write-Host "   Skill Analyzer:    http://localhost:5003" -ForegroundColor White
+    Write-Host "   Model 1:           http://localhost:5001" -ForegroundColor White
+    Write-Host "   Model 2:           http://localhost:5002" -ForegroundColor White
+    Write-Host "   Model 3:           http://localhost:5003" -ForegroundColor White
+    Write-Host "   Model 4:           http://localhost:5004" -ForegroundColor White
+    Write-Host "   Frontend:          http://localhost:5174" -ForegroundColor White
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Yellow
     Write-Host "   1. Open browser: http://localhost:5174" -ForegroundColor White

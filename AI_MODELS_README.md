@@ -338,10 +338,11 @@ The models are integrated with the backend via the following endpoints:
 ### Backend Configuration
 ```javascript
 // Backend/controllers/mlController.js
-const ML_SERVICE_URL = "http://127.0.0.1:5001";  // CV-Job Matcher
-const CV_CLASSIFIER_URL = "http://127.0.0.1:5002";  // CV Classifier
-const SKILL_MATCHER_URL = "http://127.0.0.1:5003";  // Skill Analyzer
-const CHAT_MODEL_URL = "http://127.0.0.1:5004";  // Chat Model
+// Uses environment variables with fallback defaults
+const ML_SERVICE_URL = process.env.ML_HOST || "http://localhost:5001";           // Model 1: CV-Job Matcher
+const CV_CLASSIFIER_URL = process.env.CV_CLASSIFIER_URL || "http://localhost:5002"; // Model 2: CV Classifier
+const SKILL_MATCHER_URL = process.env.SKILL_MATCHER_URL || "http://localhost:5003"; // Model 3: Skill Analyzer
+const CHAT_MODEL_URL = process.env.CHAT_MODEL_URL || "http://localhost:5004";       // Model 4: Chat Model
 ```
 
 ---

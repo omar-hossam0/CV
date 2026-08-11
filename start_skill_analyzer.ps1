@@ -1,55 +1,60 @@
 # Skill Analyzer Service Startup Script
+# Uses: model-3-skill-analyzer/skill_analyzer.py (Port 5003)
 
 Write-Host "=" -NoNewline -ForegroundColor Cyan
 Write-Host ("=" * 79) -ForegroundColor Cyan
-Write-Host "🚀 Starting TensorFlow Skill Analyzer Service" -ForegroundColor Green
+Write-Host "Starting Skill Analyzer Service" -ForegroundColor Green
 Write-Host ("=" * 80) -ForegroundColor Cyan
 
-# Activate virtual environment
-Write-Host "`n📦 Activating Python environment..." -ForegroundColor Yellow
-& .\.venv\Scripts\Activate.ps1
+# Check if virtual environment exists
+Write-Host "`nChecking Python environment..." -ForegroundColor Yellow
+$venvPath = ".\.venv\Scripts\Activate.ps1"
+if (Test-Path $venvPath) {
+    & $venvPath
+} elseif (Test-Path "model-3-skill-analyzer\venv\Scripts\Activate.ps1") {
+    & "model-3-skill-analyzer\venv\Scripts\Activate.ps1"
+}
 
-# Navigate to ml-service directory
-Write-Host "📂 Navigating to ml-service directory..." -ForegroundColor Yellow
-Set-Location ml-service
+# Navigate to model-3-skill-analyzer directory
+Write-Host "Navigating to model-3-skill-analyzer directory..." -ForegroundColor Yellow
+Set-Location model-3-skill-analyzer
 
 # Check if required files exist
-Write-Host "`n🔍 Checking required files..." -ForegroundColor Yellow
+Write-Host "`nChecking required files..." -ForegroundColor Yellow
 $requiredFiles = @(
-    "..\last-one\tokenizer.pkl",
-    "..\last-one\skills_list.json", 
-    "..\last-one\cv_job_matcher_model.h5"
+    "skill_analyzer.py",
+    "requirements.txt"
 )
 
 $allFilesExist = $true
 foreach ($file in $requiredFiles) {
     if (Test-Path $file) {
-        Write-Host "  ✅ Found: $file" -ForegroundColor Green
+        Write-Host "  Found: $file" -ForegroundColor Green
     } else {
-        Write-Host "  ❌ Missing: $file" -ForegroundColor Red
+        Write-Host "  Missing: $file" -ForegroundColor Red
         $allFilesExist = $false
     }
 }
 
 if (-not $allFilesExist) {
-    Write-Host "`n❌ ERROR: Required model files are missing!" -ForegroundColor Red
-    Write-Host "Please ensure the model is trained first." -ForegroundColor Yellow
+    Write-Host "`nERROR: Required files are missing!" -ForegroundColor Red
+    Write-Host "Please ensure model-3-skill-analyzer directory is complete." -ForegroundColor Yellow
     pause
     exit 1
 }
 
 # Install dependencies if needed
-Write-Host "`n📥 Checking dependencies..." -ForegroundColor Yellow
-python -c "import tensorflow" 2>$null
+Write-Host "`nChecking dependencies..." -ForegroundColor Yellow
+python -c "import flask" 2>$null
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Installing TensorFlow..." -ForegroundColor Yellow
-    pip install tensorflow keras flask flask-cors
+    Write-Host "Installing dependencies..." -ForegroundColor Yellow
+    pip install -r requirements.txt
 }
 
 # Set environment variable
 $env:PORT = "5003"
 
 # Start the service
-Write-Host "`n🚀 Starting Skill Analyzer Service on port 5003..." -ForegroundColor Green
+Write-Host "`nStarting Skill Analyzer Service on port 5003..." -ForegroundColor Green
 Write-Host ("=" * 80) -ForegroundColor Cyan
-python skill_analyzer_service.py
+python skill_analyzer.py
