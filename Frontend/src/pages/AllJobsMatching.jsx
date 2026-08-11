@@ -36,7 +36,7 @@ export default function AllJobsMatching() {
     const fetchAllJobs = async (token) => {
         try {
             setLoading(true);
-            const res = await fetch("${API_BASE_URL}/api/jobs", {
+            const res = await fetch(`${API_BASE_URL}/api/jobs`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
@@ -71,7 +71,7 @@ export default function AllJobsMatching() {
             const token = localStorage.getItem("token");
             console.log("🎯 Finding matching CVs for job:", job.title);
 
-            const response = await fetch("${API_BASE_URL}/api/ml/match-cvs", {
+            const response = await fetch(`${API_BASE_URL}/api/ml/match-cvs`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

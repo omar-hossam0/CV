@@ -32,7 +32,7 @@ export default function HRLayout({ children }) {
     const fetchStats = async () => {
       try {
         const res = await fetch(
-          "${API_BASE_URL}/api/notifications/unread-count",
+          `${API_BASE_URL}/api/notifications/unread-count`,
           {
             headers: { Authorization: `Bearer ${token}` },
           },

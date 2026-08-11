@@ -42,7 +42,7 @@ export default function TopNavbar() {
         try {
           const token = localStorage.getItem("token");
           const res = await fetch(
-            "${API_BASE_URL}/api/notifications/unread-count",
+            `${API_BASE_URL}/api/notifications/unread-count`,
             {
               headers: { Authorization: `Bearer ${token}` },
             }
@@ -67,7 +67,7 @@ export default function TopNavbar() {
   const fetchNotifications = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("${API_BASE_URL}/api/notifications", {
+      const res = await fetch(`${API_BASE_URL}/api/notifications`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

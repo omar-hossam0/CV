@@ -56,14 +56,14 @@ export default function HRDashboard() {
     try {
       // Fetch candidates
       const candidatesRes = await fetch(
-        "${API_BASE_URL}/api/candidates",
+        `${API_BASE_URL}/api/candidates`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
       // Fetch jobs
-      const jobsRes = await fetch("${API_BASE_URL}/api/jobs", {
+      const jobsRes = await fetch(`${API_BASE_URL}/api/jobs`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -155,7 +155,7 @@ export default function HRDashboard() {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("${API_BASE_URL}/api/ml/match-cvs", {
+      const response = await fetch(`${API_BASE_URL}/api/ml/match-cvs`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -221,7 +221,7 @@ export default function HRDashboard() {
 
   const fetchSavedJobsHR = async (token) => {
     try {
-      const res = await fetch("${API_BASE_URL}/api/jobs/hr/saved-jobs", {
+      const res = await fetch(`${API_BASE_URL}/api/jobs/hr/saved-jobs`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
