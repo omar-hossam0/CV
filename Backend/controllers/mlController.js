@@ -91,16 +91,16 @@ export const matchJobs = async (req, res) => {
           { timeout: 60000 }
         );
 
-        if (response.data.success && response.data.matched_jobs) {
-          const matchedJobs = response.data.matched_jobs;
+        if (response.data.success && response.data.matches) {
+          const matchedJobs = response.data.matches;
           
           // Map results back to full job objects
           const jobsWithScores = matchedJobs.map((match) => {
-            const jobIndex = jobs.findIndex(j => j._id.toString() === match.job_id);
-            if (jobIndex !== -1) {
+            const jobIndex = match.job_index;
+            if (jobIndex >= 0 && jobIndex < jobs.length) {
               return {
                 ...jobs[jobIndex].toObject(),
-                matchScore: Math.round(match.score * 100) / 100,
+                matchScore: Math.round(match.similarity_score * 100) / 100,
               };
             }
             return null;
