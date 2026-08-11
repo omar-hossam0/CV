@@ -80,7 +80,7 @@ export default function Profile() {
   const fetchSavedJobs = async (token) => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/candidates/saved-jobs`,
+        "${API_BASE_URL}/api/candidates/saved-jobs",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -195,7 +195,7 @@ export default function Profile() {
         availability: "Immediate",
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/candidates`, {
+      const response = await fetch("${API_BASE_URL}/api/candidates", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -282,11 +282,11 @@ export default function Profile() {
       console.log(
         "Sending request to backend...",
         "URL:",
-        `${API_BASE_URL}/api/candidates/upload`
+        "${API_BASE_URL}/api/candidates/upload"
       );
 
       const response = await fetch(
-        `${API_BASE_URL}/api/candidates/upload`,
+        "${API_BASE_URL}/api/candidates/upload",
         {
           method: "POST",
           headers: {
@@ -394,7 +394,7 @@ export default function Profile() {
       setClassifying(true);
       console.log("Starting CV classification...");
 
-      const response = await fetch(`${API_BASE_URL}/api/ml/classify-cv`, {
+      const response = await fetch("${API_BASE_URL}/api/ml/classify-cv", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

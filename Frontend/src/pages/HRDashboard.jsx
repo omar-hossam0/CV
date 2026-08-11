@@ -56,14 +56,14 @@ export default function HRDashboard() {
     try {
       // Fetch candidates
       const candidatesRes = await fetch(
-        `${API_BASE_URL}/api/candidates`,
+        "${API_BASE_URL}/api/candidates",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
       // Fetch jobs
-      const jobsRes = await fetch(`${API_BASE_URL}/api/jobs`, {
+      const jobsRes = await fetch("${API_BASE_URL}/api/jobs", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -155,7 +155,7 @@ export default function HRDashboard() {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`${API_BASE_URL}/api/ml/match-cvs`, {
+      const response = await fetch("${API_BASE_URL}/api/ml/match-cvs", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -170,7 +170,7 @@ export default function HRDashboard() {
       if (response.ok && data.success) {
         const candidates = data.data || [];
         if (candidates.length > 0) {
-          navigate("/hr/matched-candidates`, { state: { job, candidates } });
+          navigate("/hr/matched-candidates", { state: { job, candidates } });
         } else {
           showToast("⚠️ No matching CVs found", "info");
         }
@@ -221,7 +221,7 @@ export default function HRDashboard() {
 
   const fetchSavedJobsHR = async (token) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/jobs/hr/saved-jobs`, {
+      const res = await fetch("${API_BASE_URL}/api/jobs/hr/saved-jobs", {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -292,7 +292,7 @@ export default function HRDashboard() {
           </h1>
           <p className="text-slate-400">
             Here is your job listings statistic report from{" "}
-            {new Date().toLocaleDateString("en-US`, {
+            {new Date().toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
             })}{" "}

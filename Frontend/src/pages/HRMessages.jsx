@@ -16,7 +16,7 @@ export default function HRMessages() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE_URL}/api/notifications`, {
+      const res = await fetch("${API_BASE_URL}/api/notifications", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -46,7 +46,7 @@ export default function HRMessages() {
   const handleMarkAllAsRead = async () => {
     try {
       const token = localStorage.getItem("token");
-      await fetch(`${API_BASE_URL}/api/notifications/mark-all-read`, {
+      await fetch("${API_BASE_URL}/api/notifications/mark-all-read", {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
       });

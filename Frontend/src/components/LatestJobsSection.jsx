@@ -22,7 +22,7 @@ const LatestJobsSection = () => {
     try {
       setLoading(true);
       console.log("🔍 Fetching latest jobs from API...");
-      const res = await fetch(`${API_BASE_URL}/api/jobs/latest`);
+      const res = await fetch("${API_BASE_URL}/api/jobs/latest");
       const data = await res.json();
       console.log("📦 API Response:", data);
       if (!res.ok) throw new Error(data?.message || "Failed to load jobs");

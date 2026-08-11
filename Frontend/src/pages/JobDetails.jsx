@@ -43,7 +43,7 @@ export default function JobDetails() {
 
         // Check if user has already applied
         const candidateRes = await fetch(
-          `${API_BASE_URL}/api/candidates/me`,
+          "${API_BASE_URL}/api/candidates/me",
           {
             headers: { Authorization: `Bearer ${token}` },
           }

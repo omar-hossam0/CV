@@ -42,7 +42,7 @@ export default function Dashboard() {
       console.log("Fetching jobs for dashboard...");
 
       // Fetch jobs from API
-      const res = await fetch(`${API_BASE_URL}/api/jobs`, {
+      const res = await fetch("${API_BASE_URL}/api/jobs", {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",

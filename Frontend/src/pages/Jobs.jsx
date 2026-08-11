@@ -36,7 +36,7 @@ export default function Jobs() {
     salaryMax: "",
     currency: "USD",
     description: "",
-    skills: "`,// comma-separated requiredSkills
+    skills: "", // comma-separated requiredSkills
     experienceLevel: "Entry Level",
   });
 
@@ -45,7 +45,7 @@ export default function Jobs() {
       try {
         setLoading(true);
         const token = localStorage.getItem("token");
-        const res = await fetch(`${API_BASE_URL}/api/jobs`, {
+        const res = await fetch("${API_BASE_URL}/api/jobs", {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         const data = await res.json();
@@ -68,7 +68,7 @@ export default function Jobs() {
         // For HR users
         if (user.role === "hr") {
           const res = await fetch(
-            `${API_BASE_URL}/api/jobs/hr/saved-jobs`,
+            "${API_BASE_URL}/api/jobs/hr/saved-jobs",
             {
               headers: { Authorization: `Bearer ${token}` },
             }
@@ -82,7 +82,7 @@ export default function Jobs() {
         } else if (user.role === "employee") {
           // For employees
           const res = await fetch(
-            `${API_BASE_URL}/api/candidates/saved-jobs`,
+            "${API_BASE_URL}/api/candidates/saved-jobs",
             {
               headers: { Authorization: `Bearer ${token}` },
             }
@@ -160,7 +160,7 @@ export default function Jobs() {
 
       console.log("Fetching AI job matches...");
 
-      const res = await fetch(`${API_BASE_URL}/api/ml/match-jobs`, {
+      const res = await fetch("${API_BASE_URL}/api/ml/match-jobs", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -251,7 +251,7 @@ export default function Jobs() {
         throw new Error("Please provide at least one required skill");
       }
 
-      const res = await fetch(`${API_BASE_URL}/api/jobs`, {
+      const res = await fetch("${API_BASE_URL}/api/jobs", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -342,7 +342,7 @@ export default function Jobs() {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`${API_BASE_URL}/api/ml/match-cvs`, {
+      const response = await fetch("${API_BASE_URL}/api/ml/match-cvs", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -357,7 +357,7 @@ export default function Jobs() {
       if (response.ok && data.success) {
         const candidates = data.data || [];
         if (candidates.length > 0) {
-          navigate("/hr/matched-candidates`, { state: { job, candidates } });
+          navigate("/hr/matched-candidates", { state: { job, candidates } });
         } else {
           setError("⚠️ No matching CVs found for this job");
         }
