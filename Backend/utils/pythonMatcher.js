@@ -25,8 +25,8 @@ class PythonMatcherService {
                 return resolve();
             }
 
-            const scriptPath = path.join(__dirname, '..', 'scripts', 'matcher_service.py');
-            const scriptsDir = path.join(__dirname, '..', 'scripts');
+            const scriptPath = path.join(__dirname, '..', '..', 'model-1-cv-matcher', 'cv_job_matcher.py');
+            const scriptsDir = path.join(__dirname, '..', '..', 'model-1-cv-matcher');
             console.log('🐍 Starting persistent Python BERT Matcher Service...');
             console.log('   Script:', scriptPath);
             console.log('   CWD:', scriptsDir);

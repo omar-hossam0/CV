@@ -1,33 +1,29 @@
 """
-CV Classification Service
-يستخدم موديل cv_classifier_merged.keras مع Groq API لتصنيف السير الذاتية
+CV Classification Service - BERT Semantic Analysis
+Uses BERT embeddings for accurate semantic CV classification
+Port: 5002
+
+Flow:
+1. Receive CV text
+2. Encode using BERT (Sentence Transformers)
+3. Compare against job category descriptions
+4. Return most accurate classification with confidence
 """
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import tensorflow as tf
 import numpy as np
 import os
 import re
 import sys
-from typing import Optional
 import json
+from typing import Optional, List, Dict
 
-# Ensure UTF-8 stdout to avoid Windows encoding errors with logs
 sys.stdout.reconfigure(encoding="utf-8")
 
-# استيراد Groq API
-try:
-    from groq import Groq
-    GROQ_AVAILABLE = True
-except ImportError:
-    GROQ_AVAILABLE = False
-    print("⚠️ Groq library not available. Will use only Keras model.")
+app = FastAPI(title="CV Classification Service - BERT")
 
-app = FastAPI(title="CV Classification Service")
-
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,16 +32,152 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# تحميل موديل Keras
-MODEL_PATH = "cv_classifier_merged.keras"
-model = None
-groq_client = None
-JOB_CATEGORIES = []  # سيتم تحميلها من ملف JSON
+# ============================================================
+# RICH JOB CATEGORIES WITH DESCRIPTIONS (for semantic matching)
+# ============================================================
+JOB_CATEGORIES = {
+    "Frontend Developer": {
+        "description": "Frontend developer building user interfaces and client-side web applications using HTML, CSS, JavaScript, React, Angular, Vue.js, TypeScript, responsive design, browser APIs, DOM manipulation, UI components, and modern frontend frameworks",
+        "keywords": ["react", "angular", "vue", "javascript", "typescript", "html", "css", "scss", "sass", "webpack", "vite", "nextjs", "next.js", "frontend", "ui", "ux", "responsive", "tailwind", "bootstrap", "dom", "browser", "figma", "component", "jsx", "tsx"]
+    },
+    "Backend Developer": {
+        "description": "Backend developer responsible for server-side logic, APIs, database management, authentication, and scalable web services using Node.js, Express, Python, Django, Flask, FastAPI, Java, Spring, REST APIs, GraphQL, MongoDB, PostgreSQL, MySQL, Redis, microservices",
+        "keywords": ["node", "nodejs", "express", "django", "flask", "fastapi", "spring", "java", "python", "api", "rest", "graphql", "database", "sql", "nosql", "mongodb", "postgresql", "mysql", "redis", "server", "backend", "microservices", "authentication", "jwt"]
+    },
+    "Full Stack Developer": {
+        "description": "Full stack developer working on both frontend and backend, capable of building complete web applications end-to-end using MERN, MEAN, or LAMP stack technologies, handling UI, APIs, databases, and deployment",
+        "keywords": ["full stack", "fullstack", "full-stack", "mern", "mean", "lamp", "frontend", "backend", "database", "api", "deployment", "react", "node", "mongodb"]
+    },
+    "Mobile Developer": {
+        "description": "Mobile application developer building iOS and Android apps using React Native, Flutter, Swift, Kotlin, Java, mobile UI/UX, app stores, push notifications, and cross-platform development",
+        "keywords": ["android", "ios", "react native", "flutter", "swift", "kotlin", "mobile", "app", "xcode", "android studio", "react-native", "dart", "objective-c", "mobile development"]
+    },
+    "DevOps Engineer": {
+        "description": "DevOps engineer managing infrastructure, CI/CD pipelines, containerization, cloud services, automation, monitoring, and ensuring reliable software deployment using Docker, Kubernetes, Jenkins, Terraform, AWS, Azure, GCP",
+        "keywords": ["docker", "kubernetes", "k8s", "jenkins", "ci/cd", "terraform", "ansible", "aws", "azure", "gcp", "cloud", "infrastructure", "monitoring", "logging", "devops", "sre", "automation", "pipeline"]
+    },
+    "Data Scientist": {
+        "description": "Data scientist analyzing complex data, building statistical models, performing machine learning, data visualization, and extracting insights using Python, R, pandas, numpy, scikit-learn, TensorFlow, PyTorch, SQL, Jupyter",
+        "keywords": ["data science", "machine learning", "deep learning", "statistics", "pandas", "numpy", "scikit-learn", "tensorflow", "pytorch", "keras", "data analysis", "visualization", "jupyter", "notebook", "r programming", "regression", "classification", "clustering", "neural network"]
+    },
+    "Machine Learning Engineer": {
+        "description": "Machine learning engineer building, training, and deploying ML models, working on deep learning, neural networks, model optimization, MLOps, and production ML systems using TensorFlow, PyTorch, CUDA, GPU acceleration",
+        "keywords": ["machine learning", "deep learning", "ai", "artificial intelligence", "neural network", "tensorflow", "pytorch", "keras", "model", "training", "inference", "deployment", "mlops", "gpu", "cuda", "transformer", "bert", "nlp"]
+    },
+    "UI/UX Designer": {
+        "description": "UI/UX designer creating user-centered designs, wireframes, prototypes, user research, usability testing, and visual design using Figma, Sketch, Adobe XD, Photoshop, Illustrator, design systems",
+        "keywords": ["ui", "ux", "design", "figma", "sketch", "adobe xd", "photoshop", "illustrator", "wireframe", "prototype", "user research", "usability", "interaction design", "visual design", "typography", "design system"]
+    },
+    "QA Engineer": {
+        "description": "Quality assurance engineer testing software, writing test cases, automating tests, finding bugs, ensuring quality using Selenium, Jest, Mocha, Cypress, Playwright, manual and automated testing",
+        "keywords": ["testing", "qa", "quality assurance", "automation", "selenium", "jest", "mocha", "cypress", "playwright", "test cases", "bug", "regression", "integration testing", "unit testing", "test framework"]
+    },
+    "Cloud Engineer": {
+        "description": "Cloud engineer designing, implementing, and managing cloud infrastructure on AWS, Azure, or GCP, including serverless, containers, networking, security, and cost optimization",
+        "keywords": ["aws", "azure", "gcp", "cloud", "ec2", "s3", "lambda", "serverless", "kubernetes", "docker", "terraform", "cloudformation", "devops", "cloud architecture"]
+    },
+    "Cybersecurity Engineer": {
+        "description": "Cybersecurity engineer protecting systems from threats, conducting penetration testing, vulnerability assessments, implementing security policies, and incident response",
+        "keywords": ["security", "cybersecurity", "penetration testing", "vulnerability", "firewall", "siem", "encryption", "owasp", "network security", "incident response", "compliance", "audit"]
+    },
+    "Data Engineer": {
+        "description": "Data engineer building and maintaining data pipelines, ETL processes, data warehouses, and ensuring data quality and availability using Spark, Hadoop, Airflow, SQL, and big data technologies",
+        "keywords": ["data engineer", "etl", "data pipeline", "spark", "hadoop", "airflow", "data warehouse", "big data", "kafka", "data lake", "sql", "data modeling"]
+    },
+    "Software Engineer": {
+        "description": "Software engineer designing, developing, and maintaining software systems, writing clean code, algorithms, data structures, design patterns, object-oriented programming, and version control",
+        "keywords": ["software", "engineer", "developer", "programming", "coding", "algorithms", "data structures", "object-oriented", "design patterns", "unit testing", "code review", "git", "agile"]
+    },
+    "Project Manager": {
+        "description": "Project manager planning, executing, and closing projects, managing teams, timelines, budgets, stakeholder communication using Agile, Scrum, Kanban, Jira methodologies",
+        "keywords": ["project management", "agile", "scrum", "kanban", "jira", "stakeholder", "timeline", "budget", "risk management", "leadership", "team management"]
+    },
+    "Database Administrator": {
+        "description": "Database administrator managing, securing, and optimizing databases, ensuring data integrity, backup, recovery, and performance tuning using SQL, MySQL, PostgreSQL, Oracle, MongoDB",
+        "keywords": ["database", "sql", "mysql", "postgresql", "oracle", "mongodb", "backup", "replication", "performance tuning", "dba", "schema", "database management"]
+    },
+    "Accountant": {
+        "description": "Accountant managing financial records, tax preparation, auditing, bookkeeping, and financial reporting using accounting principles, GAAP, IFRS, QuickBooks",
+        "keywords": ["accounting", "finance", "tax", "audit", "bookkeeping", "quickbooks", "financial", "budget", "revenue", "ledger", "gaap", "ifrs"]
+    },
+    "HR Manager": {
+        "description": "HR manager handling recruitment, employee relations, onboarding, payroll, benefits administration, performance reviews, and workforce planning",
+        "keywords": ["human resources", "hr", "recruitment", "hiring", "onboarding", "payroll", "benefits", "employee relations", "performance review", "talent acquisition"]
+    },
+    "Marketing Manager": {
+        "description": "Marketing manager developing marketing strategies, managing campaigns, SEO/SEM, social media marketing, content marketing, brand management, and analytics",
+        "keywords": ["marketing", "seo", "sem", "social media", "content", "brand", "advertising", "campaign", "analytics", "google ads", "facebook ads", "digital marketing"]
+    },
+    "Sales Representative": {
+        "description": "Sales representative generating leads, managing client relationships, closing deals, meeting quotas, and driving revenue growth",
+        "keywords": ["sales", "crm", "lead", "prospecting", "pipeline", "quota", "revenue", "negotiation", "cold calling", "closing", "b2b", "b2c"]
+    },
+    "Healthcare Professional": {
+        "description": "Healthcare professional providing medical care, patient treatment, clinical services in hospitals, clinics, pharmacies, or other healthcare facilities",
+        "keywords": ["medical", "healthcare", "patient", "clinical", "hospital", "nursing", "pharmacy", "diagnosis", "treatment", "doctor", "nurse", "therapist"]
+    },
+    "Teacher": {
+        "description": "Teacher educating students, developing curriculum, creating lesson plans, assessing student progress, and facilitating learning in educational institutions",
+        "keywords": ["teaching", "education", "curriculum", "student", "classroom", "lesson plan", "pedagogy", "assessment", "learning", "instructor", "professor"]
+    },
+    "Product Manager": {
+        "description": "Product manager defining product vision, strategy, roadmap, gathering requirements, working with cross-functional teams, and driving product development",
+        "keywords": ["product management", "product owner", "roadmap", "user stories", "requirements", "backlog", "sprint", "agile", "stakeholder", "market research"]
+    },
+    "Business Analyst": {
+        "description": "Business analyst analyzing business processes, gathering requirements, creating documentation, data analysis, and bridging business and technology teams",
+        "keywords": ["business analysis", "requirements", "documentation", "process improvement", "data analysis", "use cases", "stakeholder", "gap analysis", "workflow"]
+    },
+    "Network Engineer": {
+        "description": "Network engineer designing, implementing, and managing computer networks, ensuring connectivity, security, and performance",
+        "keywords": ["network", "cisco", "routing", "switching", "firewall", "vpn", "tcp/ip", "dns", "dhcp", "lan", "wan", "networking"]
+    },
+    "Systems Administrator": {
+        "description": "Systems administrator managing and maintaining computer systems, servers, user accounts, security policies, and ensuring system reliability",
+        "keywords": ["system admin", "linux", "windows server", "active directory", "dns", "backup", "monitoring", "patches", "user management", "system maintenance"]
+    },
+    "Web Developer": {
+        "description": "Web developer building and maintaining websites and web applications using HTML, CSS, JavaScript, PHP, WordPress, and various web technologies",
+        "keywords": ["web", "website", "wordpress", "php", "html", "css", "javascript", "web development", "web application", "cms"]
+    },
+    "Graphics Designer": {
+        "description": "Graphics designer creating visual content, logos, branding materials, illustrations, and marketing graphics using design tools",
+        "keywords": ["graphic design", "logo", "branding", "illustration", "photoshop", "illustrator", "indesign", "creative", "visual", "print design"]
+    },
+    "Operations Manager": {
+        "description": "Operations manager overseeing daily business operations, process optimization, supply chain management, and team coordination",
+        "keywords": ["operations", "supply chain", "logistics", "process improvement", "lean", "six sigma", "inventory", "procurement", "vendor management"]
+    },
+    "Content Writer": {
+        "description": "Content writer creating written content for websites, blogs, marketing materials, and social media with strong communication skills",
+        "keywords": ["content", "writing", "blog", "copywriting", "seo writing", "creative writing", "editorial", "content marketing", "copywriter"]
+    },
+    "Technical Writer": {
+        "description": "Technical writer creating documentation, user guides, API documentation, and technical manuals for software and hardware products",
+        "keywords": ["technical writing", "documentation", "api docs", "user guide", "manual", "technical documentation", "specifications"]
+    },
+    "Artificial Intelligence Engineer": {
+        "description": "AI engineer developing intelligent systems, chatbots, recommendation engines, computer vision, and natural language processing applications",
+        "keywords": ["artificial intelligence", "ai", "chatbot", "recommendation", "computer vision", "nlp", "natural language", "gpt", "llm", "generative ai"]
+    },
+    "Blockchain Developer": {
+        "description": "Blockchain developer building decentralized applications, smart contracts, and blockchain-based solutions using Solidity, Web3, and cryptocurrency technologies",
+        "keywords": ["blockchain", "ethereum", "solidity", "web3", "smart contract", "crypto", "defi", "nft", "decentralized"]
+    },
+    "Game Developer": {
+        "description": "Game developer creating video games, game mechanics, graphics, physics, and interactive experiences using Unity, Unreal Engine, or custom engines",
+        "keywords": ["game", "unity", "unreal", "gamedev", "3d", "animation", "physics", "shader", "game design", "c#"]
+    },
+    "Robotics Engineer": {
+        "description": "Robotics engineer designing and building robots, robotic systems, control algorithms, and automation solutions",
+        "keywords": ["robotics", "robot", "ros", "c++", "control systems", "sensors", "actuators", "autonomous", "automation"]
+    }
+}
 
 
 class CVClassificationRequest(BaseModel):
     cv_text: str
-    use_groq_analysis: bool = True
+    use_groq_analysis: bool = False
 
 
 class CVClassificationResponse(BaseModel):
@@ -53,335 +185,232 @@ class CVClassificationResponse(BaseModel):
     job_title: str
     confidence: float
     decision_method: Optional[str] = None
+    top_5_predictions: Optional[List[dict]] = None
     ai_analysis: Optional[dict] = None
-    keras_prediction: Optional[dict] = None
     error: Optional[str] = None
 
 
-def load_model():
-    """تحميل موديل Keras والفئات"""
-    global model, JOB_CATEGORIES
-    try:
-        # تحميل الفئات من ملف JSON
-        classes_path = "job_classes.json"
-        if os.path.exists(classes_path):
-            with open(classes_path, 'r', encoding='utf-8') as f:
-                JOB_CATEGORIES = json.load(f)
-            print(f"✅ Loaded {len(JOB_CATEGORIES)} job categories")
-        else:
-            print(f"⚠️ Classes file not found at {classes_path}")
-            # استخدام قائمة افتراضية
-            JOB_CATEGORIES = ["Software Engineer", "Data Scientist", "Web Developer"]
-        
-        # تحميل الموديل
-        if os.path.exists(MODEL_PATH):
-            model = tf.keras.models.load_model(MODEL_PATH)
-            print(f"✅ Keras model loaded successfully from {MODEL_PATH}")
-            print(f"   Input shape: {model.input_shape}")
-            print(f"   Output shape: {model.output_shape}")
-        else:
-            # البحث عن الموديل في المجلد الرئيسي
-            parent_model_path = os.path.join("..", MODEL_PATH)
-            if os.path.exists(parent_model_path):
-                model = tf.keras.models.load_model(parent_model_path)
-                print(f"✅ Keras model loaded from parent directory: {parent_model_path}")
-                print(f"   Input shape: {model.input_shape}")
-                print(f"   Output shape: {model.output_shape}")
-            else:
-                print(f"⚠️ Model file not found at {MODEL_PATH}")
-                print(f"⚠️ Also checked: {parent_model_path}")
-                model = None
-    except Exception as e:
-        print(f"❌ Error loading Keras model: {e}")
-        model = None
+# ============================================================
+# BERT CLASSIFIER
+# ============================================================
 
-
-def initialize_groq():
-    """تهيئة Groq API"""
-    global groq_client
-    if not GROQ_AVAILABLE:
-        return
+class BERTClassifier:
+    """BERT-based semantic CV classifier"""
     
-    api_key = os.getenv("GROQ_API_KEY")
-    if api_key:
+    def __init__(self):
+        self.embedder = None
+        self.category_embeddings = {}
+        self.category_keywords = {}
+        self.use_fallback = False
+        self._load_embedder()
+        self._precompute_category_embeddings()
+    
+    def _load_embedder(self):
+        """Load SentenceTransformer BERT model"""
         try:
-            groq_client = Groq(api_key=api_key)
-            print("✅ Groq client initialized successfully")
+            from sentence_transformers import SentenceTransformer
+            
+            # Try multiple cache locations
+            cache_dirs = [
+                os.path.join(os.path.dirname(__file__), '..', 'model-1-cv-matcher', 'bert-cache'),
+                os.path.join(os.path.dirname(__file__), 'bert-cache'),
+                os.path.join(os.path.dirname(__file__), '..', 'bert-cache'),
+            ]
+            
+            cache_dir = None
+            for d in cache_dirs:
+                if os.path.exists(d):
+                    cache_dir = d
+                    break
+            
+            if cache_dir is None:
+                cache_dir = cache_dirs[0]
+            
+            os.environ.setdefault('HF_HOME', cache_dir)
+            os.environ.setdefault('SENTENCE_TRANSFORMERS_HOME', cache_dir)
+            os.environ.setdefault('TRANSFORMERS_OFFLINE', '1')
+            os.environ.setdefault('HF_HUB_OFFLINE', '1')
+            
+            print("🧠 Loading BERT model (all-MiniLM-L6-v2)...")
+            self.embedder = SentenceTransformer(
+                'all-MiniLM-L6-v2', 
+                cache_folder=cache_dir
+            )
+            print(f"✅ BERT model loaded. Embedding dim: {self.embedder.get_sentence_embedding_dimension()}")
         except Exception as e:
-            print(f"❌ Error initializing Groq: {e}")
-            groq_client = None
-    else:
-        print("⚠️ GROQ_API_KEY not found in environment variables")
+            print(f"⚠️ Could not load BERT: {e}")
+            print("   Falling back to keyword matching...")
+            self.use_fallback = True
+    
+    def _precompute_category_embeddings(self):
+        """Pre-encode all job category descriptions for fast matching"""
+        if self.use_fallback or self.embedder is None:
+            print("⚠️ Using keyword fallback (BERT not available)")
+            return
+        
+        print("📊 Pre-computing job category embeddings...")
+        categories = list(JOB_CATEGORIES.keys())
+        
+        # Create rich descriptions combining description + keywords
+        descriptions = []
+        for cat in categories:
+            desc = JOB_CATEGORIES[cat]["description"]
+            keywords_text = " ".join(JOB_CATEGORIES[cat]["keywords"][:15])
+            descriptions.append(desc + " Key skills: " + keywords_text)
+        
+        # Encode all descriptions
+        embeddings = self.embedder.encode(descriptions, convert_to_numpy=True, show_progress_bar=False)
+        
+        for i, cat in enumerate(categories):
+            self.category_embeddings[cat] = embeddings[i]
+            self.category_keywords[cat] = JOB_CATEGORIES[cat]["keywords"]
+        
+        print(f"✅ Pre-computed embeddings for {len(categories)} job categories")
+    
+    def classify(self, cv_text: str, top_k: int = 5) -> dict:
+        """Classify a CV using BERT semantic similarity"""
+        
+        if self.use_fallback or self.embedder is None:
+            return self._classify_keywords(cv_text, top_k)
+        
+        try:
+            # Encode the CV text
+            cv_embedding = self.embedder.encode([cv_text], convert_to_numpy=True)[0]
+            
+            # Calculate similarity with each category
+            similarities = {}
+            for category, cat_embedding in self.category_embeddings.items():
+                # Cosine similarity
+                cos_sim = np.dot(cv_embedding, cat_embedding) / (
+                    np.linalg.norm(cv_embedding) * np.linalg.norm(cat_embedding) + 1e-8
+                )
+                # Normalize to 0-1 range
+                similarities[category] = max(0, (cos_sim + 1) / 2)
+            
+            # Sort by similarity
+            sorted_categories = sorted(
+                similarities.items(), 
+                key=lambda x: x[1], 
+                reverse=True
+            )
+            
+            # Get top predictions
+            top_predictions = []
+            for cat, score in sorted_categories[:top_k]:
+                # Convert numpy types to Python float for JSON serialization
+                score_float = float(score)
+                top_predictions.append({
+                    "job_title": cat,
+                    "confidence": round(score_float, 3)
+                })
+            
+            best_category = sorted_categories[0][0]
+            best_score = float(sorted_categories[0][1])
+            
+            # Apply keyword boost for higher confidence
+            keyword_boost = self._calculate_keyword_boost(cv_text, best_category)
+            boosted_score = min(best_score * (1 + keyword_boost), 0.99)
+            
+            return {
+                "predicted_job": best_category,
+                "confidence": round(float(boosted_score), 3),
+                "method": "bert_semantic",
+                "top_predictions": top_predictions,
+                "raw_similarity": round(float(best_score), 3),
+                "keyword_boost": round(float(keyword_boost), 3)
+            }
+            
+        except Exception as e:
+            print(f"❌ BERT classification error: {e}")
+            import traceback
+            traceback.print_exc()
+            return self._classify_keywords(cv_text, top_k)
+    
+    def _calculate_keyword_boost(self, cv_text: str, category: str) -> float:
+        """Calculate additional confidence boost based on keyword matching"""
+        if category not in JOB_CATEGORIES:
+            return 0.0
+        
+        cv_lower = cv_text.lower()
+        keywords = JOB_CATEGORIES[category]["keywords"]
+        
+        matches = sum(1 for kw in keywords if kw.lower() in cv_lower)
+        match_ratio = matches / len(keywords) if keywords else 0
+        
+        # Small boost (0-20%) based on keyword matches
+        return min(match_ratio * 0.2, 0.2)
+    
+    def _classify_keywords(self, cv_text: str, top_k: int = 5) -> dict:
+        """Fallback: keyword-based classification"""
+        cv_lower = cv_text.lower()
+        
+        scores = {}
+        for category, data in JOB_CATEGORIES.items():
+            keywords = data["keywords"]
+            matches = sum(1 for kw in keywords if kw.lower() in cv_lower)
+            scores[category] = matches
+        
+        sorted_categories = sorted(
+            scores.items(), 
+            key=lambda x: x[1], 
+            reverse=True
+        )
+        
+        top_predictions = []
+        for cat, score in sorted_categories[:top_k]:
+            confidence = min(score / 10, 0.95) if score > 0 else 0.3
+            top_predictions.append({
+                "job_title": cat,
+                "confidence": round(confidence, 3)
+            })
+        
+        best_category = sorted_categories[0][0]
+        best_score = sorted_categories[0][1]
+        confidence = min(best_score / 10, 0.95) if best_score > 0 else 0.3
+        
+        return {
+            "predicted_job": best_category,
+            "confidence": round(confidence, 3),
+            "method": "keyword_fallback",
+            "top_predictions": top_predictions
+        }
+
+
+# Global classifier instance
+classifier = None
+
+
+def initialize_classifier():
+    """Initialize the BERT classifier"""
+    global classifier
+    if classifier is None:
+        print("🚀 Initializing CV Classification Service...")
+        classifier = BERTClassifier()
+        method = "keyword_fallback" if classifier.use_fallback else "bert_semantic"
+        print(f"✅ Classifier ready! Method: {method}")
+    return classifier
+
+
+# Initialize on module load
+initialize_classifier()
 
 
 @app.on_event("startup")
 async def startup_event():
-    """تشغيل عند بدء السيرفر"""
-    print("🚀 Starting CV Classification Service...")
-    load_model()
-    initialize_groq()
-    print("✅ Service ready!")
-
-
-def extract_text_features(text: str) -> np.ndarray:
-    """
-    استخراج features من النص - عمل text padding ل 8000 characters
-    الموديل يتوقع CV text بطول محدد (8000)
-    
-    استخدام TF-IDF أو character-level encoding
-    """
-    # نظف النص وحوله لأحرف صغيرة
-    text = text.lower().strip()
-    
-    # Pad أو truncate إلى 8000 characters بالضبط
-    if len(text) > 8000:
-        text = text[:8000]
-    elif len(text) < 8000:
-        # بدلاً من مجرد spaces، استخدم padding ذكي
-        text = text + '\n' * (8000 - len(text))
-    
-    # تحويل النص إلى character-level features
-    features = []
-    for char in text:
-        # تحويل كل حرف إلى قيمة وتطبيعها
-        # استخدم ord() بشكل أفضل
-        if char == '\n':
-            features.append(0.0)  # newline
-        elif char == ' ':
-            features.append(0.1)  # space
-        else:
-            # normalize ASCII value between 0.1 and 1.0
-            ascii_val = ord(char)
-            if ascii_val < 32:  # control characters
-                features.append(0.05)
-            else:
-                # Map printable characters (32-126) to 0.2-1.0
-                features.append(min(max((ascii_val - 32) / (126 - 32) * 0.8 + 0.2, 0.2), 1.0))
-    
-    # تأكد من أن الحجم بالضبط 8000
-    features_array = np.array(features, dtype=np.float32).reshape(1, 8000)
-    
-    return features_array
-
-
-def classify_with_keras_model(cv_text: str) -> dict:
-    """تصنيف باستخدام موديل Keras"""
-    if model is None:
-        return {"error": "Model not loaded"}
-    
-    try:
-        # استخراج features
-        features = extract_text_features(cv_text)
-        print(f"📊 Features shape: {features.shape}")
-        
-        # التنبؤ
-        predictions = model.predict(features, verbose=0)
-        print(f"📊 Predictions shape: {predictions.shape}")
-        
-        # الحصول على أعلى 3 تنبؤات
-        top_3_indices = np.argsort(predictions[0])[-3:][::-1]
-        top_3_scores = predictions[0][top_3_indices]
-        
-        # الحصول على أفضل تنبؤ
-        predicted_index = int(top_3_indices[0])
-        confidence = float(top_3_scores[0])
-        
-        if predicted_index < len(JOB_CATEGORIES):
-            predicted_job = JOB_CATEGORIES[predicted_index]
-        else:
-            predicted_job = f"Class_{predicted_index}"
-        
-        # تجهيز top 3
-        top_predictions = []
-        for idx, score in zip(top_3_indices, top_3_scores):
-            job_name = JOB_CATEGORIES[int(idx)] if int(idx) < len(JOB_CATEGORIES) else f"Class_{idx}"
-            top_predictions.append({
-                "job_title": job_name,
-                "confidence": float(score)
-            })
-        
-        return {
-            "predicted_job": predicted_job,
-            "confidence": confidence,
-            "method": "keras_model",
-            "top_3_predictions": top_predictions,
-            "total_classes": len(JOB_CATEGORIES)
-        }
-        
-    except Exception as e:
-        print(f"❌ Error in Keras prediction: {e}")
-        import traceback
-        traceback.print_exc()
-        return {"error": str(e)}
-
-
-def detect_domain_role(text_lower: str) -> Optional[str]:
-    """اكتشاف دور عام من كلمات نطاق غير تقني مثل الرعاية الصحية"""
-    healthcare_terms = [
-        'hospital', 'clinic', 'patient', 'healthcare', 'medical', 'doctor', 'nurse',
-        'pharmacy', 'pharmacist', 'therapist', 'surgery', 'laboratory', 'radiology'
-    ]
-    if any(term in text_lower for term in healthcare_terms):
-        return "Healthcare Professional"
-    return None
-
-
-def extract_analysis_from_text(cv_text: str) -> dict:
-    """استخراج التحليل من النص مباشرة (بدون API)"""
-    text_lower = cv_text.lower()
-    
-    # استخراج المهارات
-    all_skills = [
-        'python', 'javascript', 'typescript', 'java', 'c++', 'c#', 'php', 'ruby', 'go', 'rust',
-        'react', 'vue', 'angular', 'nodejs', 'express', 'django', 'flask', 'spring',
-        'mongodb', 'postgresql', 'mysql', 'redis', 'docker', 'kubernetes',
-        'aws', 'azure', 'gcp', 'git', 'linux', 'html', 'css', 'sql',
-        'machine learning', 'tensorflow', 'pytorch', 'pandas', 'numpy', 'rest api'
-    ]
-    
-    found_skills = [skill for skill in all_skills if skill in text_lower]
-    
-    # استخراج سنوات الخبرة
-    experience_years = 0
-    import re
-    years_match = re.search(r'(\d+)\s*(?:years?|yrs?|سنة|سنوات)', text_lower)
-    if years_match:
-        experience_years = int(years_match.group(1))
-    
-    # استخراج اللغات البرمجية
-    languages = []
-    lang_keywords = {
-        'Python': 'python',
-        'JavaScript': 'javascript',
-        'Java': 'java',
-        'C++': 'c++',
-        'C#': 'c#',
-        'PHP': 'php',
-        'Ruby': 'ruby',
-        'Go': 'go',
-        'TypeScript': 'typescript'
-    }
-    
-    for lang_name, keyword in lang_keywords.items():
-        if keyword in text_lower:
-            languages.append(lang_name)
-
-    # تحديد دور عام (مثل الرعاية الصحية) إذا لم تكن مهارات تقنية موجودة
-    domain_role = detect_domain_role(text_lower)
-    primary_role = domain_role or "Software Developer"
-    
-    return {
-        "primary_role": primary_role,
-        "skills": found_skills[:15],  # حد أقصى 15 مهارة
-        "experience_years": experience_years,
-        "languages": languages,
-        "projects": [],
-        "recommended_categories": []
-    }
-
-
-def analyze_cv_with_groq(cv_text: str) -> dict:
-    """تحليل CV باستخدام Groq API"""
-    if not groq_client:
-        return {"error": "Groq client not available"}
-    
-    prompt = f"""
-Analyze this CV and provide detailed information about the candidate's profile:
-
-CV Text:
-{cv_text}
-
-Please provide:
-1. Primary job role/title that best fits this candidate
-2. Key technical skills mentioned
-3. Years of experience (estimate if not explicitly stated)
-4. Main programming languages
-5. Notable projects or achievements
-6. Recommended job categories (from: Frontend Developer, Backend Developer, Full Stack Developer, Mobile Developer, DevOps Engineer, Data Scientist, Machine Learning Engineer, UI/UX Designer, Software Engineer, Quality Assurance Engineer)
-
-Format your response as JSON with these fields:
-{{
-    "primary_role": "...",
-    "skills": ["skill1", "skill2", ...],
-    "experience_years": number,
-    "languages": ["lang1", "lang2", ...],
-    "projects": ["project1", "project2", ...],
-    "recommended_categories": ["category1", "category2", ...]
-}}
-"""
-    
-    try:
-        chat_completion = groq_client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
-            model="llama3-8b-8192",  # أو أي موديل متاح
-            temperature=0.3,
-            max_tokens=1024,
-        )
-        
-        response_text = chat_completion.choices[0].message.content
-        
-        # محاولة استخراج JSON من الرد
-        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
-        if json_match:
-            analysis = json.loads(json_match.group())
-            return analysis
-        else:
-            return {"raw_response": response_text}
-            
-    except Exception as e:
-        return {"error": str(e)}
-
-
-def classify_with_keywords(cv_text: str) -> dict:
-    """تصنيف بسيط باستخدام keyword matching"""
-    text_lower = cv_text.lower()
-    
-    # تعريف keywords لكل فئة
-    job_keywords = {
-        "Frontend Developer": ['react', 'vue', 'angular', 'javascript', 'html', 'css', 'frontend', 'ui', 'typescript', 'next.js'],
-        "Backend Developer": ['node', 'python', 'java', 'django', 'flask', 'spring', 'backend', 'api', 'express', 'fastapi'],
-        "Full Stack Developer": ['full stack', 'fullstack', 'mern', 'mean', 'full-stack', 'lamp'],
-        "Mobile Developer": ['android', 'ios', 'react native', 'flutter', 'swift', 'kotlin', 'mobile', 'app'],
-        "DevOps Engineer": ['docker', 'kubernetes', 'aws', 'azure', 'devops', 'ci/cd', 'jenkins', 'terraform'],
-        "Data Scientist": ['data science', 'machine learning', 'pandas', 'numpy', 'python', 'tensorflow', 'pytorch'],
-        "Machine Learning Engineer": ['machine learning', 'deep learning', 'ai', 'neural', 'tensorflow', 'pytorch', 'keras'],
-    }
-    
-    # احسب score لكل فئة
-    scores = {}
-    for job_title, keywords in job_keywords.items():
-        score = sum(1 for keyword in keywords if keyword in text_lower)
-        scores[job_title] = score
-    
-    # احصل على الفئة الأعلى
-    best_job = max(scores, key=scores.get)
-    best_score = scores[best_job]
-    
-    # حول score إلى confidence (normalized)
-    max_possible_score = max(len(kw) for kw in job_keywords.values())
-    confidence = min(best_score / max_possible_score * 100, 100) / 100
-    confidence = max(confidence, 0.5)  # حد أدنى 50% إذا وجدنا أي keywords
-    
-    if best_score == 0:
-        confidence = 0.0
-    
-    return {
-        "predicted_job": best_job,
-        "confidence": confidence,
-        "method": "keyword_matching",
-        "scores": scores
-    }
+    """Ensure classifier is initialized on startup"""
+    initialize_classifier()
 
 
 @app.post("/classify", response_model=CVClassificationResponse)
 async def classify_cv(request: CVClassificationRequest):
     """
-    تصنيف CV باستخدام Hybrid Approach: Keras Model + Keyword Matching + AI Analysis
+    Classify CV to determine job title using BERT semantic analysis.
+    
+    Flow:
+    1. Receive CV text
+    2. Encode using BERT embeddings
+    3. Compare against all job category descriptions
+    4. Return most accurate match with confidence
     """
     try:
         cv_text = request.cv_text.strip()
@@ -391,119 +420,23 @@ async def classify_cv(request: CVClassificationRequest):
             raise HTTPException(status_code=400, detail="CV text is required")
         
         print(f"\n{'='*60}")
-        print(f"📄 CV Text Length: {len(cv_text)} characters")
-        print(f"📚 First 200 chars: {cv_text[:200]}")
-        print(f"{'='*60}\n")
+        print(f"📄 Classifying CV ({len(cv_text)} chars)")
+        print(f"{'='*60}")
         
-        # 1. استخدام Keyword Matching أولاً (baseline)
-        print("🔎 Step 1: Keyword Matching...")
-        keyword_result = classify_with_keywords(cv_text)
-        keyword_job = keyword_result.get("predicted_job", "Unknown")
-        keyword_confidence = keyword_result.get("confidence", 0.0)
-        keyword_scores = keyword_result.get("scores", {})
-        max_keyword_score = max(keyword_scores.values()) if keyword_scores else 0
-        print(f"   📊 Keyword: {keyword_job} ({keyword_confidence*100:.1f}%) | score={max_keyword_score}")
+        # Classify using BERT
+        result = classifier.classify(cv_text)
         
-        # 2. استخدام Keras Model (إذا متاح)
-        keras_result = None
-        keras_job = None
-        keras_confidence = 0.0
+        print(f"✅ Classification: {result['predicted_job']} ({result['confidence']*100:.1f}%)")
+        print(f"   Method: {result['method']}")
+        if 'raw_similarity' in result:
+            print(f"   Raw Similarity: {result['raw_similarity']}")
         
-        if model is not None:
-            print("🧠 Step 2: Keras Model Classification...")
-            keras_result = classify_with_keras_model(cv_text)
-            
-            if "error" not in keras_result:
-                keras_job = keras_result.get("predicted_job", "Unknown")
-                keras_confidence = keras_result.get("confidence", 0.0)
-                print(f"   📊 Keras: {keras_job} ({keras_confidence*100:.1f}%)")
-            else:
-                print(f"   ❌ Keras error: {keras_result['error']}")
-        
-        # 3. دمج النتائج بذكاء (Ensemble)
-        print("\n🔄 Step 3: Ensemble Decision...")
-        final_job_title = "Unknown"
-        final_confidence = 0.0
-        decision_method = "keyword_primary"
-        
-        # استخدم Keywords كأساس (لأن الموديل غير موثوق)
-        final_job_title = keyword_job
-        final_confidence = keyword_confidence
-        
-        # حالة 1: Keyword matching قوي (>= 3 matches) - استخدمه مباشرة
-        if max_keyword_score >= 3:
-            decision_method = "keyword_strong"
-            # زيادة الثقة قليلاً إذا كانت Keywords قوية
-            final_confidence = min(keyword_confidence * 1.1, 0.95)
-            print(f"   ✅ Strong keyword match ({max_keyword_score} matches)")
-        
-        # حالة 2: Keyword matching متوسط (1-2 matches)
-        elif max_keyword_score >= 1:
-            decision_method = "keyword_moderate"
-            print(f"   ✓ Moderate keyword match ({max_keyword_score} matches)")
-            
-            # إذا كان Keras يتفق مع Keywords، زد الثقة
-            if keras_job and keras_job == keyword_job:
-                final_confidence = min((keyword_confidence + keras_confidence) / 2.0 * 1.15, 0.90)
-                decision_method = "keyword_keras_agreement"
-                print(f"   ✅ Keras agrees with keywords!")
-        
-        # حالة 3: لا توجد keywords واضحة (0 matches)
-        else:
-            print(f"   ⚠️ No keyword matches found")
-            decision_method = "text_analysis"
-            
-            # استخدم Text Analysis
-            ai_analysis_temp = extract_analysis_from_text(cv_text)
-            if ai_analysis_temp and "primary_role" in ai_analysis_temp:
-                final_job_title = ai_analysis_temp["primary_role"]
-                final_confidence = 0.65
-                decision_method = "text_analysis_fallback"
-                print(f"   → Using text analysis: {final_job_title}")
-            else:
-                # آخر محاولة: استخدم Keras
-                if keras_job:
-                    final_job_title = keras_job
-                    final_confidence = min(keras_confidence * 0.7, 0.70)  # خفض الثقة
-                    decision_method = "keras_last_resort"
-                    print(f"   → Using Keras as last resort")
-                else:
-                    final_job_title = "Software Engineer"  # default
-                    final_confidence = 0.50
-                    decision_method = "default"
-                    print(f"   → Using default")
-        
-        # 4. اختياري: AI Analysis للتحسين
-        ai_analysis = None
-        if request.use_groq_analysis or final_confidence < 0.50:
-            print("\n🤖 Step 4: AI Analysis...")
-            if groq_client:
-                ai_analysis = analyze_cv_with_groq(cv_text)
-            else:
-                ai_analysis = extract_analysis_from_text(cv_text)
-            
-            if ai_analysis and "primary_role" in ai_analysis:
-                ai_role = ai_analysis.get("primary_role")
-                print(f"   📊 AI: {ai_role}")
-                
-                # استخدم AI فقط إذا كانت الثقة منخفضة جداً
-                if final_confidence < 0.50:
-                    final_job_title = ai_role
-                    final_confidence = 0.70
-                    decision_method = "ai_low_confidence"
-                    print(f"   ✅ Using AI (low confidence)")
-        
-        print(f"\n{'='*60}")
-        print(f"✅ FINAL: {final_job_title} ({final_confidence*100:.1f}%) [{decision_method}]")
-        print(f"{'='*60}\n")
-        
-        # إعداد الاستجابة
+        # Build response
         response_data = {
-            "job_title": final_job_title,
-            "confidence": final_confidence,
-            "decision_method": decision_method,
-            "ai_analysis": ai_analysis,
-            "keras_prediction": keras_result if keras_result else keyword_result
+            "job_title": result["predicted_job"],
+            "confidence": result["confidence"],
+            "decision_method": result["method"],
+            "top_5_predictions": result.get("top_predictions", []),
         }
         
         return CVClassificationResponse(
@@ -511,6 +444,8 @@ async def classify_cv(request: CVClassificationRequest):
             **response_data
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"❌ Error in classify_cv: {e}")
         import traceback
@@ -525,12 +460,12 @@ async def classify_cv(request: CVClassificationRequest):
 
 @app.get("/")
 async def root():
-    """صفحة الرئيسية"""
+    """Service info"""
     return {
-        "service": "CV Classification Service",
+        "service": "CV Classification Service - BERT",
         "status": "running",
-        "keras_model": "loaded" if model else "not loaded",
-        "groq_api": "available" if groq_client else "not available",
+        "classification_method": "keyword_fallback" if classifier and classifier.use_fallback else "bert_semantic",
+        "categories_count": len(JOB_CATEGORIES),
         "endpoints": {
             "classify": "/classify (POST)",
             "health": "/health (GET)"
@@ -540,11 +475,12 @@ async def root():
 
 @app.get("/health")
 async def health():
-    """فحص حالة السيرفر"""
+    """Health check"""
     return {
         "status": "healthy",
-        "keras_model": model is not None,
-        "groq_api": groq_client is not None
+        "bert_available": classifier is not None and not (classifier.use_fallback if classifier else True),
+        "classification_method": "keyword_fallback" if classifier and classifier.use_fallback else "bert_semantic",
+        "categories_count": len(JOB_CATEGORIES)
     }
 
 
