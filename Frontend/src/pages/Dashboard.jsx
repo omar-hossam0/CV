@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../utils/api.js";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ export default function Dashboard() {
       console.log("Fetching jobs for dashboard...");
 
       // Fetch jobs from API
-      const res = await fetch("http://localhost:5000/api/jobs", {
+      const res = await fetch("${API_BASE_URL}/api/jobs", {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",

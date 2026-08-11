@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../utils/api.js";
 
 export default function JobApplicants() {
     const { jobId } = useParams();
@@ -16,7 +17,7 @@ export default function JobApplicants() {
                 const token = localStorage.getItem("token");
 
                 // Fetch job details
-                const jobRes = await fetch(`http://localhost:5000/api/jobs/${jobId}`, {
+                const jobRes = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const jobData = await jobRes.json();
@@ -24,7 +25,7 @@ export default function JobApplicants() {
                 setJob(jobData.data || jobData.job);
 
                 // Fetch applicants
-                const applicantsRes = await fetch(`http://localhost:5000/api/jobs/${jobId}/applicants`, {
+                const applicantsRes = await fetch(`${API_BASE_URL}/api/jobs/${jobId}/applicants`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const applicantsData = await applicantsRes.json();

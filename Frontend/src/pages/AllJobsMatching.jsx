@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Toast from "../components/Toast";
+import { API_BASE_URL } from "../utils/api.js";
 
 export default function AllJobsMatching() {
     const navigate = useNavigate();
@@ -35,7 +36,7 @@ export default function AllJobsMatching() {
     const fetchAllJobs = async (token) => {
         try {
             setLoading(true);
-            const res = await fetch("http://localhost:5000/api/jobs", {
+            const res = await fetch("${API_BASE_URL}/api/jobs", {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
@@ -70,7 +71,7 @@ export default function AllJobsMatching() {
             const token = localStorage.getItem("token");
             console.log("🎯 Finding matching CVs for job:", job.title);
 
-            const response = await fetch("http://localhost:5000/api/ml/match-cvs", {
+            const response = await fetch("${API_BASE_URL}/api/ml/match-cvs", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -255,7 +256,7 @@ export default function AllJobsMatching() {
                                             <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0 overflow-hidden">
                                                 {job.companyLogo ? (
                                                     <img
-                                                        src={`http://localhost:5000${job.companyLogo}`}
+                                                        src={`${API_BASE_URL}${job.companyLogo}`}
                                                         alt={job.company}
                                                         className="w-full h-full object-cover"
                                                     />

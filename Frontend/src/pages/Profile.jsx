@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Toast from "../components/Toast";
+import { API_BASE_URL } from "../utils/api.js";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -79,7 +80,7 @@ export default function Profile() {
   const fetchSavedJobs = async (token) => {
     try {
       const response = await fetch(
-        "http://localhost:5000/api/candidates/saved-jobs",
+        "${API_BASE_URL}/api/candidates/saved-jobs",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -100,7 +101,7 @@ export default function Profile() {
       console.log("Fetching candidate profile...");
 
       // Use /me endpoint for employees to get their own profile
-      const response = await fetch(`http://localhost:5000/api/candidates/me`, {
+      const response = await fetch(`${API_BASE_URL}/api/candidates/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -194,7 +195,7 @@ export default function Profile() {
         availability: "Immediate",
       };
 
-      const response = await fetch("http://localhost:5000/api/candidates", {
+      const response = await fetch("${API_BASE_URL}/api/candidates", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -281,11 +282,11 @@ export default function Profile() {
       console.log(
         "Sending request to backend...",
         "URL:",
-        "http://localhost:5000/api/candidates/upload"
+        "${API_BASE_URL}/api/candidates/upload"
       );
 
       const response = await fetch(
-        "http://localhost:5000/api/candidates/upload",
+        "${API_BASE_URL}/api/candidates/upload",
         {
           method: "POST",
           headers: {
@@ -393,7 +394,7 @@ export default function Profile() {
       setClassifying(true);
       console.log("Starting CV classification...");
 
-      const response = await fetch("http://localhost:5000/api/ml/classify-cv", {
+      const response = await fetch("${API_BASE_URL}/api/ml/classify-cv", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

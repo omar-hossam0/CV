@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { API_BASE_URL } from "../utils/api.js";
 
 export default function CandidateProfile() {
     const { candidateId } = useParams();
@@ -18,7 +19,7 @@ export default function CandidateProfile() {
                 setLoading(true);
                 const token = localStorage.getItem("token");
 
-                const res = await fetch(`http://localhost:5000/api/candidates/${candidateId}`, {
+                const res = await fetch(`${API_BASE_URL}/api/candidates/${candidateId}`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
 
@@ -36,7 +37,7 @@ export default function CandidateProfile() {
                         setSelectedJobApplication(application);
 
                         // Fetch job details to get questions
-                        const jobRes = await fetch(`http://localhost:5000/api/jobs/${jobId}`, {
+                        const jobRes = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`, {
                             headers: { Authorization: `Bearer ${token}` },
                         });
                         const jobData = await jobRes.json();
@@ -63,7 +64,7 @@ export default function CandidateProfile() {
     const downloadCV = async () => {
         try {
             const token = localStorage.getItem("token");
-            const res = await fetch(`http://localhost:5000/api/candidates/${candidateId}/resume`, {
+            const res = await fetch(`${API_BASE_URL}/api/candidates/${candidateId}/resume`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 

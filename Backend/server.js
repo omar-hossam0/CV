@@ -45,7 +45,8 @@ app.use("/api/ml", mlRoutes);
 
 // In production, serve the React built static files
 if (process.env.NODE_ENV === "production") {
-  const distPath = path.join(__dirname, "../my-react-app/dist");
+  // Fixed path: Frontend directory is at ../Frontend relative to Backend
+  const distPath = path.join(__dirname, "../Frontend/dist");
   app.use(express.static(distPath));
   // SPA fallback for client-side routing (after API routes, before errors)
   app.get("*", (req, res) => {
@@ -125,9 +126,27 @@ app.use(notFound);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () =>
-  console.log(`Server running on port ${PORT}`)
-);
+
+// Validate required environment variables
+const requiredEnvVars = ['JWT_SECRET'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+  console.warn(`⚠️  Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  console.warn('   Please set these in your .env file. See .env.example for reference.');
+  console.warn('   Server will continue with defaults for development only.');
+}
+
+const server = app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔐 JWT Secret: ${process.env.JWT_SECRET ? 'configured' : '⚠️ NOT SET'}`);
+  console.log(`🗄️  MongoDB: ${process.env.MONGODB_URI || 'mongodb://localhost:27017/cv_project_db'}`);
+  console.log(`🤖 ML Service 1 (CV-Job Matcher): ${process.env.ML_HOST || 'http://localhost:5001'}`);
+  console.log(`🤖 ML Service 2 (CV Classifier): ${process.env.CV_CLASSIFIER_URL || 'http://localhost:5002'}`);
+  console.log(`🤖 ML Service 3 (Skill Analyzer): ${process.env.SKILL_MATCHER_URL || 'http://localhost:5003'}`);
+  console.log(`🤖 ML Service 4 (Chat Model): ${process.env.CHAT_MODEL_URL || 'http://localhost:5004'}`);
+});
 
 // Increase timeout for ML operations (120 seconds)
 server.timeout = 120000;

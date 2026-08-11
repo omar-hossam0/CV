@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../utils/api.js";
 
 export default function Jobs() {
   const navigate = useNavigate();
@@ -44,7 +45,7 @@ export default function Jobs() {
       try {
         setLoading(true);
         const token = localStorage.getItem("token");
-        const res = await fetch("http://localhost:5000/api/jobs", {
+        const res = await fetch("${API_BASE_URL}/api/jobs", {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         const data = await res.json();
@@ -67,7 +68,7 @@ export default function Jobs() {
         // For HR users
         if (user.role === "hr") {
           const res = await fetch(
-            "http://localhost:5000/api/jobs/hr/saved-jobs",
+            "${API_BASE_URL}/api/jobs/hr/saved-jobs",
             {
               headers: { Authorization: `Bearer ${token}` },
             }
@@ -81,7 +82,7 @@ export default function Jobs() {
         } else if (user.role === "employee") {
           // For employees
           const res = await fetch(
-            "http://localhost:5000/api/candidates/saved-jobs",
+            "${API_BASE_URL}/api/candidates/saved-jobs",
             {
               headers: { Authorization: `Bearer ${token}` },
             }
@@ -120,8 +121,8 @@ export default function Jobs() {
       // Determine endpoint based on user role
       const endpoint =
         user?.role === "hr"
-          ? `http://localhost:5000/api/jobs/hr/saved-jobs/${jobId}`
-          : `http://localhost:5000/api/candidates/saved-jobs/${jobId}`;
+          ? `${API_BASE_URL}/api/jobs/hr/saved-jobs/${jobId}`
+          : `${API_BASE_URL}/api/candidates/saved-jobs/${jobId}`;
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -159,7 +160,7 @@ export default function Jobs() {
 
       console.log("Fetching AI job matches...");
 
-      const res = await fetch("http://localhost:5000/api/ml/match-jobs", {
+      const res = await fetch("${API_BASE_URL}/api/ml/match-jobs", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -250,7 +251,7 @@ export default function Jobs() {
         throw new Error("Please provide at least one required skill");
       }
 
-      const res = await fetch("http://localhost:5000/api/jobs", {
+      const res = await fetch("${API_BASE_URL}/api/jobs", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -311,7 +312,7 @@ export default function Jobs() {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:5000/api/jobs/${jobId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -341,7 +342,7 @@ export default function Jobs() {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:5000/api/ml/match-cvs", {
+      const response = await fetch("${API_BASE_URL}/api/ml/match-cvs", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

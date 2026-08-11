@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../utils/api.js";
 
 export default function TopNavbar() {
   const location = useLocation();
@@ -41,7 +42,7 @@ export default function TopNavbar() {
         try {
           const token = localStorage.getItem("token");
           const res = await fetch(
-            "http://localhost:5000/api/notifications/unread-count",
+            "${API_BASE_URL}/api/notifications/unread-count",
             {
               headers: { Authorization: `Bearer ${token}` },
             }
@@ -66,7 +67,7 @@ export default function TopNavbar() {
   const fetchNotifications = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:5000/api/notifications", {
+      const res = await fetch("${API_BASE_URL}/api/notifications", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -89,7 +90,7 @@ export default function TopNavbar() {
   const handleMarkAsRead = async (notificationId) => {
     try {
       const token = localStorage.getItem("token");
-      await fetch(`http://localhost:5000/api/notifications/${notificationId}`, {
+      await fetch(`${API_BASE_URL}/api/notifications/${notificationId}`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
       });

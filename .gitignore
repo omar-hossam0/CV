@@ -1,38 +1,69 @@
+# ===========================================
 # Dependencies
+# ===========================================
 node_modules/
 .venv/
+venv/
+env/
+ENV/
 __pycache__/
 *.pyc
+*.pyo
 .Python
 
-# Environment variables
+# ===========================================
+# Environment variables (NEVER commit)
+# ===========================================
 .env
 .env.local
 .env.*.local
 
+# ===========================================
 # Build outputs
+# ===========================================
 dist/
 build/
 *.pth
 *.pkl
+*.keras
+*.h5
 
+# ===========================================
 # IDE
+# ===========================================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
+# ===========================================
 # OS
+# ===========================================
 .DS_Store
 Thumbs.db
 
+# ===========================================
 # Logs
+# ===========================================
 logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Large files (model weights, data, venv)
+# ===========================================
+# Model files and caches
+# ===========================================
+# BERT cache (large, should not be committed)
+model-1-cv-matcher/bert-cache/
+ml-service/bert-cache/
+
+# Model weights and data files
+*.pkl
+*.pth
+*.h5
+*.keras
 model matching/*.pkl
 model matching/*.pth
 model matching/*.zip
@@ -41,25 +72,41 @@ model matching/data*.csv
 model matching/__pycache__/
 model matching/bert-cache/
 model matching/cv-job-matching-colab/
+
+# Python cache
+ml-service/__pycache__/
+Backend/**/__pycache__/
+model-*/__pycache__/
+
+# ===========================================
+# Project-specific exclusions
+# ===========================================
 Backend/uploads/
-ml-service/.venv/
 cv/cv/*.csv
 cv/cv/*.zip
 cv/
-
-# Misc local folders
 run project/
+ask/*.csv
 
-# Python cache inside services
-ml-service/__pycache__/
-Backend/**/__pycache__/
+# ===========================================
+# Large files
+# ===========================================
+*.zip
+*.tar.gz
+*.rar
 
-# Python Virtual Environments
-.venv/
-venv/
-env/
-ENV/
+# ===========================================
+# Testing and coverage
+# ===========================================
+coverage/
+.nyc_output/
 
-
-# Large model files
-*.keras
+# ===========================================
+# Misc
+# ===========================================
+*.tmp
+tmp/
+temp/
+.cache/
+.npm/
+.eslintcache

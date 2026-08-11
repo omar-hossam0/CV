@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Toast from "../components/Toast";
+import { API_BASE_URL } from "../utils/api.js";
 
 export default function HRProfile() {
   const navigate = useNavigate();
@@ -67,7 +68,7 @@ export default function HRProfile() {
       const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
 
       // Fetch user profile from API
-      const profileRes = await fetch("http://localhost:5000/api/auth/me", {
+      const profileRes = await fetch("${API_BASE_URL}/api/auth/me", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -100,11 +101,11 @@ export default function HRProfile() {
         }
       }
 
-      const jobsRes = await fetch("http://localhost:5000/api/jobs", {
+      const jobsRes = await fetch("${API_BASE_URL}/api/jobs", {
         headers: { Authorization: `Bearer ${token}` },
       });
       const candidatesRes = await fetch(
-        "http://localhost:5000/api/candidates",
+        "${API_BASE_URL}/api/candidates",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -176,7 +177,7 @@ export default function HRProfile() {
         formData.append("profileImage", imageFile);
 
         const uploadRes = await fetch(
-          "http://localhost:5000/api/auth/me/upload-image",
+          "${API_BASE_URL}/api/auth/me/upload-image",
           {
             method: "POST",
             headers: {
@@ -212,7 +213,7 @@ export default function HRProfile() {
       }
 
       // Update profile info in backend
-      const updateRes = await fetch("http://localhost:5000/api/auth/me", {
+      const updateRes = await fetch("${API_BASE_URL}/api/auth/me", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

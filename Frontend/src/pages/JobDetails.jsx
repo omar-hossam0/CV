@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../utils/api.js";
 
 export default function JobDetails() {
   const { jobId } = useParams();
@@ -23,7 +24,7 @@ export default function JobDetails() {
         const token = localStorage.getItem("token");
 
         // Fetch job details
-        const jobRes = await fetch(`http://localhost:5000/api/jobs/${jobId}`, {
+        const jobRes = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const jobData = await jobRes.json();
@@ -42,7 +43,7 @@ export default function JobDetails() {
 
         // Check if user has already applied
         const candidateRes = await fetch(
-          "http://localhost:5000/api/candidates/me",
+          "${API_BASE_URL}/api/candidates/me",
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -77,7 +78,7 @@ export default function JobDetails() {
       const token = localStorage.getItem("token");
 
       const analysisRes = await fetch(
-        `http://localhost:5000/api/ml/analyze-job/${jobId}`,
+        `${API_BASE_URL}/api/ml/analyze-job/${jobId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -135,7 +136,7 @@ export default function JobDetails() {
       const token = localStorage.getItem("token");
 
       const res = await fetch(
-        `http://localhost:5000/api/jobs/${jobId}/withdraw`,
+        `${API_BASE_URL}/api/jobs/${jobId}/withdraw`,
         {
           method: "DELETE",
           headers: {
@@ -164,7 +165,7 @@ export default function JobDetails() {
       setError(null);
       const token = localStorage.getItem("token");
 
-      const res = await fetch(`http://localhost:5000/api/jobs/${jobId}/apply`, {
+      const res = await fetch(`${API_BASE_URL}/api/jobs/${jobId}/apply`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

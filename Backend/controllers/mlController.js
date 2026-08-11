@@ -2,47 +2,34 @@ import Candidate from "../models/Candidate.js";
 import Job from "../models/Job.js";
 import axios from "axios";
 import { hybridMatch } from "../utils/hybridMatcher.js";
-import { getPythonMatcher } from "../utils/pythonMatcher.js";
-import path from "path";
-import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ML Service URLs (configurable via environment variables)
+const ML_SERVICE_URL = process.env.ML_HOST || "http://localhost:5001";
+const CV_CLASSIFIER_URL = process.env.CV_CLASSIFIER_URL || "http://localhost:5002";
+const SKILL_MATCHER_URL = process.env.SKILL_MATCHER_URL || "http://localhost:5003";
+const CHAT_MODEL_URL = process.env.CHAT_MODEL_URL || "http://localhost:5004";
 
-const ML_SERVICE_URL = process.env.ML_HOST || "http://127.0.0.1:5001";
-const CV_CLASSIFIER_URL =
-  process.env.CV_CLASSIFIER_URL || "http://127.0.0.1:5002";
-const SKILL_MATCHER_URL_DEFAULT = process.env.SKILL_MATCHER_URL || "http://127.0.0.1:5003";
-const CHAT_MODEL_URL = process.env.CHAT_MODEL_URL || "http://127.0.0.1:5004";
-const USE_PYTHON_MATCHER = process.env.USE_PYTHON_MATCHER !== "false"; // Default: true (Python BERT matcher)
+// Check if ML service is available
+const checkMLServiceHealth = async (url, serviceName) => {
+  try {
+    const response = await axios.get(`${url}/health`, { timeout: 5000 });
+    return response.data.status === "healthy";
+  } catch (error) {
+    console.log(`⚠️  ${serviceName} not available at ${url}`);
+    return false;
+  }
+};
 
-// Python service - using Model 1 (CV-Job Matcher) for BERT matching
-let pythonServiceReady = false;
-const pythonMatcher = getPythonMatcher();
-
-pythonMatcher
-  .start()
-  .then(() => {
-    pythonServiceReady = true;
-    console.log("✅ Python BERT Matcher Service started successfully!");
-  })
-  .catch((error) => {
-    pythonServiceReady = false;
-    console.error("❌ Failed to start Python service:", error.message);
-    console.log("⚠️  Will fallback to JavaScript matcher");
-  });
-
+/**
+ * Match CV with a single file (for CV upload analysis)
+ */
 export const matchCV = async (req, res) => {
   try {
     const file = req.file;
     if (!file) {
-      return res
-        .status(400)
-        .json({ success: false, message: "cvFile is required" });
+      return res.status(400).json({ success: false, message: "cvFile is required" });
     }
-    return res
-      .status(501)
-      .json({ success: false, message: "ML integration disabled" });
+    return res.status(501).json({ success: false, message: "ML integration disabled" });
   } catch (err) {
     const status = err.response?.status || 500;
     const data = err.response?.data || { success: false, error: err.message };
@@ -50,17 +37,17 @@ export const matchCV = async (req, res) => {
   }
 };
 
+/**
+ * Match jobs for the authenticated user
+ * Uses HTTP to call Model 1 (CV-Job Matcher) service
+ */
 export const matchJobs = async (req, res) => {
   try {
     console.log("🎯 Matching jobs for user:", req.user.email);
 
     // Get candidate's CV text
     const candidate = await Candidate.findOne({ email: req.user.email });
-    if (
-      !candidate ||
-      !candidate.resumeText ||
-      candidate.resumeText.trim() === ""
-    ) {
+    if (!candidate || !candidate.resumeText || candidate.resumeText.trim() === "") {
       return res.status(400).json({
         success: false,
         message: "No CV found. Please upload your CV first.",
@@ -69,7 +56,6 @@ export const matchJobs = async (req, res) => {
 
     const cvText = candidate.resumeText;
     console.log("📄 CV Text Length:", cvText.length, "characters");
-    console.log("📄 CV Preview:", cvText.substring(0, 100) + "...");
 
     // Fetch active jobs to match against
     const jobs = await Job.find({ status: "Active" });
@@ -82,51 +68,64 @@ export const matchJobs = async (req, res) => {
 
     console.log(`💼 Found ${jobs.length} active jobs to match`);
 
-    // Use Python matcher with BERT embeddings (same as test_my_cv.py)
-    if (USE_PYTHON_MATCHER && pythonServiceReady) {
+    // Try Model 1 HTTP service first
+    const isModel1Available = await checkMLServiceHealth(ML_SERVICE_URL, "Model 1 (CV-Job Matcher)");
+    
+    if (isModel1Available) {
       try {
-        console.log(
-          "🐍 Using Persistent Python BERT Matcher (70% Semantic BERT + 30% Keywords)"
-        );
+        console.log("🤖 Using Model 1 (CV-Job Matcher) via HTTP");
 
-        // Prepare job descriptions (description field only!)
-        const jobDescriptions = jobs.map((job) => job.description || "");
-
-        // Call persistent Python service (model already loaded in memory!)
-        const matches = await pythonMatcher.match(cvText, jobDescriptions, 10);
-
-        // Map results back to full job objects
-        const jobsWithScores = matches.map((match) => ({
-          ...jobs[match.job_index].toObject(),
-          matchScore: Math.round(match.similarity_score * 100) / 100,
+        // Prepare job descriptions
+        const jobDescriptions = jobs.map((job, index) => ({
+          id: job._id.toString(),
+          description: job.description || "",
         }));
 
-        console.log(
-          `✅ Python BERT Matcher returned ${jobsWithScores.length} matches`
+        // Call Model 1 HTTP service
+        const response = await axios.post(
+          `${ML_SERVICE_URL}/match-jobs`,
+          {
+            cv_text: cvText,
+            job_descriptions: jobDescriptions.slice(0, 20), // Limit to 20 jobs
+          },
+          { timeout: 60000 }
         );
-        jobsWithScores.slice(0, 5).forEach((job, idx) => {
-          console.log(`   ${idx + 1}. "${job.title}": ${job.matchScore}%`);
-        });
 
-        return res.status(200).json({
-          success: true,
-          data: jobsWithScores,
-          method: "python_bert_hybrid_persistent",
-          note: "Using BERT embeddings + keyword matching (same as test_my_cv.py) - Fast persistent service!",
-        });
-      } catch (pythonError) {
-        console.error("❌ Python matcher failed:", pythonError.message);
+        if (response.data.success && response.data.matched_jobs) {
+          const matchedJobs = response.data.matched_jobs;
+          
+          // Map results back to full job objects
+          const jobsWithScores = matchedJobs.map((match) => {
+            const jobIndex = jobs.findIndex(j => j._id.toString() === match.job_id);
+            if (jobIndex !== -1) {
+              return {
+                ...jobs[jobIndex].toObject(),
+                matchScore: Math.round(match.score * 100) / 100,
+              };
+            }
+            return null;
+          }).filter(Boolean);
+
+          console.log(`✅ Model 1 returned ${jobsWithScores.length} matches`);
+          jobsWithScores.slice(0, 5).forEach((job, idx) => {
+            console.log(`   ${idx + 1}. "${job.title}": ${job.matchScore}%`);
+          });
+
+          return res.status(200).json({
+            success: true,
+            data: jobsWithScores,
+            method: "model1_http",
+            note: "Using BERT embeddings + keyword matching via HTTP service",
+          });
+        }
+      } catch (modelError) {
+        console.error("❌ Model 1 HTTP call failed:", modelError.message);
         console.log("⚠️  Falling back to JavaScript hybrid matcher...");
-        // Fall through to JavaScript matcher
       }
-    } else if (USE_PYTHON_MATCHER && !pythonServiceReady) {
-      console.log("⚠️  Python service not ready, using JavaScript fallback");
     }
 
     // Fallback: Use JavaScript Hybrid Matcher
-    console.log(
-      "🚀 Using JavaScript Hybrid Matcher (token-based semantic + keywords)"
-    );
+    console.log("🚀 Using JavaScript Hybrid Matcher (token-based semantic + keywords)");
     const matches = hybridMatch(cvText, jobs, 10);
 
     const jobsWithScores = matches.map((match) => ({
@@ -151,6 +150,9 @@ export const matchJobs = async (req, res) => {
   }
 };
 
+/**
+ * Get match inputs for debugging
+ */
 export const getMatchInputs = async (req, res) => {
   try {
     const email = (req.query?.email || "").trim().toLowerCase();
@@ -162,11 +164,7 @@ export const getMatchInputs = async (req, res) => {
         resumeText: { $exists: true, $ne: "" },
       }).sort({ createdAt: -1 });
     }
-    if (
-      !candidate ||
-      !candidate.resumeText ||
-      candidate.resumeText.trim() === ""
-    ) {
+    if (!candidate || !candidate.resumeText || candidate.resumeText.trim() === "") {
       return res.status(400).json({
         success: false,
         message: "No candidate resumeText found. Provide ?email=",
@@ -176,8 +174,7 @@ export const getMatchInputs = async (req, res) => {
     const cvText = candidate.resumeText;
     const text = (cvText || "").toLowerCase();
     const normalize = (s) =>
-      s
-        .toLowerCase()
+      s.toLowerCase()
         .replace(/\+/g, "p")
         .replace(/#/g, "sharp")
         .replace(/node\.?\s*js/g, "nodejs");
@@ -187,41 +184,14 @@ export const getMatchInputs = async (req, res) => {
         .split(/\s+/)
         .filter(Boolean);
     const stop = new Set([
-      "the",
-      "and",
-      "for",
-      "with",
-      "from",
-      "into",
-      "that",
-      "this",
-      "will",
-      "shall",
-      "have",
-      "has",
-      "are",
-      "was",
-      "were",
-      "to",
-      "in",
-      "on",
-      "of",
-      "a",
-      "an",
-      "by",
-      "at",
-      "as",
-      "or",
-      "your",
-      "you",
-      "we",
-      "our",
+      "the", "and", "for", "with", "from", "into", "that", "this",
+      "will", "shall", "have", "has", "are", "was", "were", "to",
+      "in", "on", "of", "a", "an", "by", "at", "as", "or", "your",
+      "you", "we", "our",
     ]);
-    const filterTokens = (arr) =>
-      arr.filter((w) => !stop.has(w) && w.length > 2);
+    const filterTokens = (arr) => arr.filter((w) => !stop.has(w) && w.length > 2);
     const makeBigrams = (arr) =>
-      arr
-        .slice(0, Math.max(0, arr.length - 1))
+      arr.slice(0, Math.max(0, arr.length - 1))
         .map((_, i) => `${arr[i]} ${arr[i + 1]}`);
     const stem = (w) => w.replace(/(ing|ed|s)$/, "");
     const cvTokensRaw = tokenize(text);
@@ -230,9 +200,7 @@ export const getMatchInputs = async (req, res) => {
 
     const jobs = await Job.find({ status: "Active" });
     if (!jobs || jobs.length === 0) {
-      return res
-        .status(422)
-        .json({ success: false, message: "No jobs available" });
+      return res.status(422).json({ success: false, message: "No jobs available" });
     }
     const limit = Math.min(parseInt(req.query?.limit || "10"), 50);
     const jobsPayload = jobs.slice(0, limit).map((job) => {
@@ -273,22 +241,18 @@ export const getMatchInputs = async (req, res) => {
  * Chat endpoint to power frontend chatbot (employee interview page)
  * POST /api/ml/chat
  * Body: { question: string, context?: string }
- * Uses GROQ API if `GROQ_API_KEY` is set, otherwise proxies to ML_SERVICE_URL `/chat`.
+ * Uses GROQ API if `GROQ_API_KEY` is set, otherwise proxies to Model 4 service.
  */
 export const chatModel = async (req, res) => {
   try {
     const { question, context } = req.body || {};
     if (!question || question.trim() === "") {
-      return res
-        .status(400)
-        .json({ success: false, message: "question is required" });
+      return res.status(400).json({ success: false, message: "question is required" });
     }
 
     // Prefer using Groq API when API key is available
     if (process.env.GROQ_API_KEY) {
-      const GROQ_API_URL =
-        process.env.GROQ_API_URL ||
-        "https://api.groq.com/openai/v1/chat/completions";
+      const GROQ_API_URL = process.env.GROQ_API_URL || "https://api.groq.com/openai/v1/chat/completions";
       const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 
       const payload = {
@@ -296,9 +260,7 @@ export const chatModel = async (req, res) => {
         messages: [
           {
             role: "system",
-            content:
-              context ||
-              "You are a professional career assistant chatbot. Use only the provided CV content when answering.",
+            content: context || "You are a professional career assistant chatbot. Use only the provided CV content when answering.",
           },
           { role: "user", content: question },
         ],
@@ -328,22 +290,26 @@ export const chatModel = async (req, res) => {
       return res.status(200).json({ success: true, answer });
     }
 
-    // Fallback: ask the configured ML service (if it exposes a /chat proxy)
-    const resp = await axios.post(
-      `${ML_SERVICE_URL}/chat`,
-      { question, context },
-      { timeout: 60000 }
-    );
-    return res.status(resp.status).json(resp.data);
+    // Fallback: ask Model 4 service
+    const isModel4Available = await checkMLServiceHealth(CHAT_MODEL_URL, "Model 4 (Chat)");
+    
+    if (isModel4Available) {
+      const resp = await axios.post(
+        `${CHAT_MODEL_URL}/chat`,
+        { question, context },
+        { timeout: 60000 }
+      );
+      return res.status(200).json({ success: true, answer: resp.data.answer || resp.data.message });
+    }
+
+    // Final fallback: local response
+    return res.status(200).json({
+      success: true,
+      answer: `Thank you for your question: "${question}"\n\nI'm your career assistant chatbot. Please ensure the Chat Model service is running for full functionality.`,
+      source: "fallback",
+    });
   } catch (err) {
     console.error("❌ chatModel error:", err?.message || err);
-    if (err.response) {
-      console.error("📋 Response status:", err.response.status);
-      console.error(
-        "📋 Response data:",
-        JSON.stringify(err.response.data, null, 2)
-      );
-    }
     const status = err.response?.status || 500;
     const data = err.response?.data || { success: false, error: err.message };
     return res.status(status).json(data);
@@ -353,7 +319,6 @@ export const chatModel = async (req, res) => {
 /**
  * Match CVs to Job Description (for HR)
  * Finds best matching candidate CVs for a given job description
- * Uses the SAME matching logic as Employee matching for consistent scores
  */
 export const matchCVsToJob = async (req, res) => {
   try {
@@ -400,7 +365,7 @@ export const matchCVsToJob = async (req, res) => {
 
     console.log(`📄 Found ${candidates.length} candidates with CVs`);
 
-    // Use hybridMatchCVsToJob - same matching logic as Employee (hybridMatch)
+    // Use hybridMatchCVsToJob
     const { hybridMatchCVsToJob } = await import("../utils/hybridMatcher.js");
 
     const topMatches = hybridMatchCVsToJob(jobDescription, candidates, 10);
@@ -429,7 +394,7 @@ export const matchCVsToJob = async (req, res) => {
       success: true,
       data: matchedCandidates,
       jobTitle: job.title,
-      method: "Hybrid Skill Matching (same as Employee)",
+      method: "Hybrid Skill Matching",
     });
   } catch (error) {
     console.error("❌ Error matching CVs to job:", error.message);
@@ -442,7 +407,7 @@ export const matchCVsToJob = async (req, res) => {
 
 /**
  * Classify CV to determine job title/role
- * Uses cv_classifier_merged.keras model + Groq API
+ * Uses Model 2 (CV Classifier) service
  */
 export const classifyCV = async (req, res) => {
   try {
@@ -450,11 +415,7 @@ export const classifyCV = async (req, res) => {
 
     // Get candidate's CV text
     const candidate = await Candidate.findOne({ email: req.user.email });
-    if (
-      !candidate ||
-      !candidate.resumeText ||
-      candidate.resumeText.trim() === ""
-    ) {
+    if (!candidate || !candidate.resumeText || candidate.resumeText.trim() === "") {
       return res.status(400).json({
         success: false,
         message: "No CV found. Please upload your CV first.",
@@ -464,7 +425,18 @@ export const classifyCV = async (req, res) => {
     const cvText = candidate.resumeText;
     console.log("📄 CV Text Length:", cvText.length, "characters");
 
-    // Call CV Classifier Service
+    // Check if Model 2 is available
+    const isModel2Available = await checkMLServiceHealth(CV_CLASSIFIER_URL, "Model 2 (CV Classifier)");
+    
+    if (!isModel2Available) {
+      return res.status(503).json({
+        success: false,
+        message: "CV Classifier Service is not running. Please start it first.",
+        hint: "Run: python model-2-cv-classifier/cv_classifier.py",
+      });
+    }
+
+    // Call Model 2 (CV Classifier) service
     console.log("🔬 Calling CV Classifier Service at:", CV_CLASSIFIER_URL);
 
     const response = await axios.post(
@@ -473,21 +445,18 @@ export const classifyCV = async (req, res) => {
         cv_text: cvText,
         use_groq_analysis: true,
       },
-      {
-        timeout: 30000, // 30 seconds timeout
-      }
+      { timeout: 30000 }
     );
 
     if (response.data.success) {
       console.log("✅ Classification successful!");
       console.log("   Job Title:", response.data.job_title);
       console.log("   Confidence:", response.data.confidence);
-      console.log("   AI Analysis:", response.data.ai_analysis);
 
-      // Update candidate with classified job title AND save classification results
+      // Update candidate with classified job title
       candidate.jobTitle = response.data.job_title;
 
-      // Save classification results for persistence
+      // Save classification results
       candidate.classificationResult = {
         jobTitle: response.data.job_title,
         confidence: response.data.confidence,
@@ -505,7 +474,6 @@ export const classifyCV = async (req, res) => {
           confidence: response.data.confidence,
           decision_method: response.data.decision_method,
           ai_analysis: response.data.ai_analysis,
-          keras_prediction: response.data.keras_prediction,
         },
         message: "CV classified successfully!",
       });
@@ -515,12 +483,11 @@ export const classifyCV = async (req, res) => {
   } catch (error) {
     console.error("❌ Error classifying CV:", error.message);
 
-    // Check if it's a connection error
     if (error.code === "ECONNREFUSED") {
       return res.status(503).json({
         success: false,
         message: "CV Classifier Service is not running. Please start it first.",
-        hint: "Run: python ml-service/cv_classifier_service.py",
+        hint: "Run: python model-2-cv-classifier/cv_classifier.py",
       });
     }
 
@@ -533,7 +500,7 @@ export const classifyCV = async (req, res) => {
 
 /**
  * Analyze a specific job against user's CV
- * Returns matched and missing skills using TensorFlow model
+ * Uses Model 3 (Skill Analyzer) service
  */
 export const analyzeJobForUser = async (req, res) => {
   try {
@@ -553,11 +520,7 @@ export const analyzeJobForUser = async (req, res) => {
 
     // Get candidate's CV
     const candidate = await Candidate.findOne({ email: userEmail });
-    if (
-      !candidate ||
-      !candidate.resumeText ||
-      candidate.resumeText.trim() === ""
-    ) {
+    if (!candidate || !candidate.resumeText || candidate.resumeText.trim() === "") {
       return res.status(400).json({
         success: false,
         message: "No CV found. Please upload your CV first.",
@@ -577,242 +540,146 @@ export const analyzeJobForUser = async (req, res) => {
     console.log("📄 CV Text Length:", cvText.length);
     console.log("💼 Job Description Length:", jobDescription.length);
 
-    // Call TensorFlow Skill Matcher Service (last-one model)
-    try {
-      console.log("🤖 Calling TensorFlow Skill Matcher Service...");
-      const SKILL_MATCHER_URL = SKILL_MATCHER_URL_DEFAULT;
+    // Check if Model 3 is available
+    const isModel3Available = await checkMLServiceHealth(SKILL_MATCHER_URL, "Model 3 (Skill Analyzer)");
+    
+    if (isModel3Available) {
+      try {
+        console.log("🤖 Calling Model 3 (Skill Analyzer) via HTTP");
 
-      const analyzerResponse = await axios.post(
-        `${SKILL_MATCHER_URL}/analyze`,
-        {
-          cv_text: cvText,
-          job_desc: jobDescription,
-        },
-        {
-          timeout: 30000, // 30 seconds timeout
-        }
-      );
-
-      if (analyzerResponse.data.success) {
-        const analysisData = analyzerResponse.data.data;
-
-        console.log("✅ TensorFlow Analysis Complete:");
-        console.log(`   - Match: ${analysisData.match_percentage}%`);
-        console.log(
-          `   - Matched Skills: ${analysisData.matched_skills.length}`
-        );
-        console.log(
-          `   - Missing Skills: ${analysisData.missing_skills.length}`
+        const analyzerResponse = await axios.post(
+          `${SKILL_MATCHER_URL}/analyze`,
+          {
+            cv_text: cvText,
+            job_desc: jobDescription,
+          },
+          { timeout: 30000 }
         );
 
-        return res.status(200).json({
-          success: true,
-          data: {
-            jobTitle: job.title,
-            company: job.company,
-            matchScore: analysisData.match_percentage,
-            matchPercentage: analysisData.match_percentage,
-            matchedSkills: analysisData.matched_skills,
-            missingSkills: analysisData.missing_skills,
-            totalJobSkills: analysisData.job_skills.length,
-            totalCvSkills: analysisData.cv_skills.length,
-            mlService: "tensorflow",
-          },
-        });
-      } else {
-        throw new Error("Skill Analyzer returned unsuccessful response");
-      }
-    } catch (mlError) {
-      console.error("❌ TensorFlow Service Error:", mlError.message);
+        if (analyzerResponse.data.success) {
+          const analysisData = analyzerResponse.data.data;
 
-      // Check if it's a connection error
-      if (mlError.code === "ECONNREFUSED" || mlError.code === "ENOTFOUND") {
-        console.log("⚠️  Skill Matcher Service not running!");
-        console.log("💡 Start it with: python start_skill_matcher.py");
-      }
+          console.log("✅ Skill Analysis Complete:");
+          console.log(`   - Match: ${analysisData.match_percentage}%`);
+          console.log(`   - Matched Skills: ${analysisData.matched_skills.length}`);
+          console.log(`   - Missing Skills: ${analysisData.missing_skills.length}`);
 
-      // Fallback: Extract skills from job description using NLP-like approach
-      console.log("⚠️  Falling back to basic text analysis...");
-
-      // Common skill keywords to look for in job description
-      const skillPatterns = [
-        // Programming Languages
-        "python",
-        "javascript",
-        "java",
-        "c++",
-        "c#",
-        "php",
-        "ruby",
-        "go",
-        "rust",
-        "swift",
-        "kotlin",
-        "typescript",
-        // Web Technologies
-        "react",
-        "vue",
-        "angular",
-        "node.js",
-        "express",
-        "django",
-        "flask",
-        "spring",
-        "laravel",
-        // Databases
-        "sql",
-        "mysql",
-        "postgresql",
-        "mongodb",
-        "redis",
-        "elasticsearch",
-        "oracle",
-        // Cloud & DevOps
-        "aws",
-        "azure",
-        "gcp",
-        "docker",
-        "kubernetes",
-        "jenkins",
-        "ci/cd",
-        "terraform",
-        // Data & ML
-        "machine learning",
-        "deep learning",
-        "tensorflow",
-        "pytorch",
-        "pandas",
-        "numpy",
-        "data analysis",
-        // Soft Skills
-        "communication",
-        "leadership",
-        "teamwork",
-        "problem solving",
-        "critical thinking",
-        "time management",
-        // Business Skills
-        "project management",
-        "agile",
-        "scrum",
-        "product management",
-        "business analysis",
-        // Marketing & PR
-        "public relations",
-        "media relations",
-        "social media",
-        "content strategy",
-        "seo",
-        "marketing",
-        "crisis management",
-        "brand management",
-        "copywriting",
-        "analytics",
-        // Design
-        "ui/ux",
-        "photoshop",
-        "illustrator",
-        "figma",
-        "design thinking",
-        // Other
-        "git",
-        "github",
-        "api",
-        "rest",
-        "graphql",
-        "microservices",
-        "testing",
-        "debugging",
-      ];
-
-      // Extract skills from job description
-      const jobDescLower = jobDescription.toLowerCase();
-      const cvTextLower = cvText.toLowerCase();
-
-      const foundJobSkills = skillPatterns.filter((skill) =>
-        jobDescLower.includes(skill.toLowerCase())
-      );
-
-      // Also include requiredSkills if available
-      const requiredSkillsArray = job.requiredSkills || [];
-      const allJobSkills = [
-        ...new Set([
-          ...foundJobSkills,
-          ...requiredSkillsArray.map((s) => s.toLowerCase()),
-        ]),
-      ];
-
-      if (allJobSkills.length === 0) {
-        console.warn("⚠️ No skills found in job description");
-        return res.status(200).json({
-          success: true,
-          data: {
-            jobTitle: job.title,
-            company: job.company,
-            matchScore: 0,
-            matchPercentage: 0,
-            matchedSkills: [],
-            missingSkills: [],
-            totalJobSkills: 0,
-            totalCvSkills: 0,
-            fallback: true,
-            message:
-              "No skills detected in job description. Please add more details.",
-          },
-        });
-      }
-
-      // Check which skills are in CV
-      const matchedSkills = [];
-      const missingSkillsList = [];
-
-      allJobSkills.forEach((skill) => {
-        if (cvTextLower.includes(skill.toLowerCase())) {
-          matchedSkills.push(skill);
+          return res.status(200).json({
+            success: true,
+            data: {
+              jobTitle: job.title,
+              company: job.company,
+              matchScore: analysisData.match_percentage,
+              matchPercentage: analysisData.match_percentage,
+              matchedSkills: analysisData.matched_skills,
+              missingSkills: analysisData.missing_skills,
+              totalJobSkills: analysisData.job_skills.length,
+              totalCvSkills: analysisData.cv_skills.length,
+              mlService: "model3_http",
+            },
+          });
         } else {
-          missingSkillsList.push(skill);
+          throw new Error("Skill Analyzer returned unsuccessful response");
         }
-      });
+      } catch (mlError) {
+        console.error("❌ Model 3 HTTP call failed:", mlError.message);
+        console.log("⚠️  Falling back to basic text analysis...");
+      }
+    }
 
-      const matchPercentage =
-        allJobSkills.length > 0
-          ? (matchedSkills.length / allJobSkills.length) * 100
-          : 0;
+    // Fallback: Extract skills from job description
+    console.log("⚠️  Falling back to basic text analysis...");
 
-      const missingSkills = missingSkillsList.map((skill) => ({
-        skill,
-        confidence: 0.6,
-        priority: "MEDIUM",
-        youtube: `https://www.youtube.com/results?search_query=${encodeURIComponent(
-          skill + " tutorial"
-        )}`,
-      }));
+    const skillPatterns = [
+      "python", "javascript", "java", "c++", "c#", "php", "ruby", "go", "rust", "swift", "kotlin", "typescript",
+      "react", "vue", "angular", "node.js", "express", "django", "flask", "spring", "laravel",
+      "sql", "mysql", "postgresql", "mongodb", "redis", "elasticsearch", "oracle",
+      "aws", "azure", "gcp", "docker", "kubernetes", "jenkins", "ci/cd", "terraform",
+      "machine learning", "deep learning", "tensorflow", "pytorch", "pandas", "numpy", "data analysis",
+      "communication", "leadership", "teamwork", "problem solving", "critical thinking", "time management",
+      "project management", "agile", "scrum", "product management", "business analysis",
+      "git", "github", "api", "rest", "graphql", "microservices", "testing", "debugging",
+    ];
 
-      console.log(`✅ Fallback Analysis Complete:`);
-      console.log(
-        `   - Skills extracted from job description: ${foundJobSkills.length}`
-      );
-      console.log(`   - Total job skills: ${allJobSkills.length}`);
-      console.log(`   - Matched: ${matchedSkills.length}`);
-      console.log(`   - Missing: ${missingSkillsList.length}`);
-      console.log(`   - Match %: ${matchPercentage.toFixed(1)}%`);
+    const jobDescLower = jobDescription.toLowerCase();
+    const cvTextLower = cvText.toLowerCase();
 
+    const foundJobSkills = skillPatterns.filter((skill) =>
+      jobDescLower.includes(skill.toLowerCase())
+    );
+
+    const requiredSkillsArray = job.requiredSkills || [];
+    const allJobSkills = [
+      ...new Set([
+        ...foundJobSkills,
+        ...requiredSkillsArray.map((s) => s.toLowerCase()),
+      ]),
+    ];
+
+    if (allJobSkills.length === 0) {
+      console.warn("⚠️ No skills found in job description");
       return res.status(200).json({
         success: true,
         data: {
           jobTitle: job.title,
           company: job.company,
-          matchScore: Math.round(matchPercentage * 100) / 100,
-          matchPercentage: Math.round(matchPercentage * 100) / 100,
-          matchedSkills,
-          missingSkills,
-          totalJobSkills: allJobSkills.length,
-          totalCvSkills: matchedSkills.length,
+          matchScore: 0,
+          matchPercentage: 0,
+          matchedSkills: [],
+          missingSkills: [],
+          totalJobSkills: 0,
+          totalCvSkills: 0,
           fallback: true,
-          extractedFrom: "job_description",
+          message: "No skills detected in job description. Please add more details.",
         },
       });
     }
+
+    const matchedSkills = [];
+    const missingSkillsList = [];
+
+    allJobSkills.forEach((skill) => {
+      if (cvTextLower.includes(skill.toLowerCase())) {
+        matchedSkills.push(skill);
+      } else {
+        missingSkillsList.push(skill);
+      }
+    });
+
+    const matchPercentage =
+      allJobSkills.length > 0
+        ? (matchedSkills.length / allJobSkills.length) * 100
+        : 0;
+
+    const missingSkills = missingSkillsList.map((skill) => ({
+      skill,
+      confidence: 0.6,
+      priority: "MEDIUM",
+      youtube: `https://www.youtube.com/results?search_query=${encodeURIComponent(skill + " tutorial")}`,
+    }));
+
+    console.log(`✅ Fallback Analysis Complete:`);
+    console.log(`   - Skills extracted from job description: ${foundJobSkills.length}`);
+    console.log(`   - Total job skills: ${allJobSkills.length}`);
+    console.log(`   - Matched: ${matchedSkills.length}`);
+    console.log(`   - Missing: ${missingSkillsList.length}`);
+    console.log(`   - Match %: ${matchPercentage.toFixed(1)}%`);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        jobTitle: job.title,
+        company: job.company,
+        matchScore: Math.round(matchPercentage * 100) / 100,
+        matchPercentage: Math.round(matchPercentage * 100) / 100,
+        matchedSkills,
+        missingSkills,
+        totalJobSkills: allJobSkills.length,
+        totalCvSkills: matchedSkills.length,
+        fallback: true,
+        extractedFrom: "job_description",
+      },
+    });
   } catch (error) {
     console.error("❌ Error in analyzeJobForUser:", error.message);
     return res.status(500).json({

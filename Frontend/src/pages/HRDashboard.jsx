@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Toast from "../components/Toast";
+import { API_BASE_URL } from "../utils/api.js";
 
 export default function HRDashboard() {
   const navigate = useNavigate();
@@ -55,14 +56,14 @@ export default function HRDashboard() {
     try {
       // Fetch candidates
       const candidatesRes = await fetch(
-        "http://localhost:5000/api/candidates",
+        "${API_BASE_URL}/api/candidates",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
       // Fetch jobs
-      const jobsRes = await fetch("http://localhost:5000/api/jobs", {
+      const jobsRes = await fetch("${API_BASE_URL}/api/jobs", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -126,7 +127,7 @@ export default function HRDashboard() {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:5000/api/jobs/${jobId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -154,7 +155,7 @@ export default function HRDashboard() {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:5000/api/ml/match-cvs", {
+      const response = await fetch("${API_BASE_URL}/api/ml/match-cvs", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -192,7 +193,7 @@ export default function HRDashboard() {
       }
 
       const res = await fetch(
-        `http://localhost:5000/api/jobs/hr/saved-jobs/${jobId}`,
+        `${API_BASE_URL}/api/jobs/hr/saved-jobs/${jobId}`,
         {
           method: "POST",
           headers: {
@@ -220,7 +221,7 @@ export default function HRDashboard() {
 
   const fetchSavedJobsHR = async (token) => {
     try {
-      const res = await fetch("http://localhost:5000/api/jobs/hr/saved-jobs", {
+      const res = await fetch("${API_BASE_URL}/api/jobs/hr/saved-jobs", {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();

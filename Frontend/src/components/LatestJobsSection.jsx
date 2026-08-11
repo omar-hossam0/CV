@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext.jsx";
 import { useScrollReveal } from "../hooks/useScrollReveal.jsx";
+import { API_BASE_URL } from "../utils/api.js";
 
 const LatestJobsSection = () => {
   const { isDark } = useTheme();
@@ -21,7 +22,7 @@ const LatestJobsSection = () => {
     try {
       setLoading(true);
       console.log("🔍 Fetching latest jobs from API...");
-      const res = await fetch("http://localhost:5000/api/jobs/latest");
+      const res = await fetch("${API_BASE_URL}/api/jobs/latest");
       const data = await res.json();
       console.log("📦 API Response:", data);
       if (!res.ok) throw new Error(data?.message || "Failed to load jobs");

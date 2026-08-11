@@ -8,8 +8,17 @@ export const verifyRole = (allowedRoles) => {
       return res.status(401).json({ message: "No token provided" });
     }
 
+    // Validate JWT_SECRET is configured
+    if (!process.env.JWT_SECRET) {
+      console.error('❌ JWT_SECRET environment variable is not set!');
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error. Please contact administrator.',
+      });
+    }
+
     try {
-      const decoded = jwt.verify(token, "your-secret-key");
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
       if (!allowedRoles.includes(decoded.role)) {
         return res.status(403).json({ message: "Access denied" });
       }

@@ -53,6 +53,15 @@ export const register = async (req, res) => {
       role,
     });
 
+    // Validate JWT_SECRET is configured
+    if (!process.env.JWT_SECRET) {
+      console.error('❌ JWT_SECRET environment variable is not set!');
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error. Please contact administrator.',
+      });
+    }
+
     const token = jwt.sign(
       {
         id: newUser._id,
@@ -60,7 +69,7 @@ export const register = async (req, res) => {
         role: newUser.role,
         name: newUser.name,
       },
-      process.env.JWT_SECRET || "your-secret-key-here",
+      process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
@@ -143,6 +152,15 @@ export const login = async (req, res) => {
       });
     }
 
+    // Validate JWT_SECRET is configured
+    if (!process.env.JWT_SECRET) {
+      console.error('❌ JWT_SECRET environment variable is not set!');
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error. Please contact administrator.',
+      });
+    }
+
     const token = jwt.sign(
       {
         id: user._id,
@@ -150,7 +168,7 @@ export const login = async (req, res) => {
         role: user.role,
         name: user.name,
       },
-      process.env.JWT_SECRET || "your-secret-key-here",
+      process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 

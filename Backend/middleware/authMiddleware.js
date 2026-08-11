@@ -31,9 +31,18 @@ export const verifyToken = async (req, res, next) => {
 
     const token = authHeader.split(" ")[1];
 
+    // Validate JWT_SECRET is configured
+    if (!process.env.JWT_SECRET) {
+      console.error('❌ JWT_SECRET environment variable is not set!');
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error. Please contact administrator.',
+      });
+    }
+
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET || "your-secret-key-here"
+      process.env.JWT_SECRET
     );
 
     console.log('✅ Token decoded:', decoded.email, decoded.role);

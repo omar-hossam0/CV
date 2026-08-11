@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../utils/api.js";
 
 export default function HRLayout({ children }) {
   const navigate = useNavigate();
@@ -31,7 +32,7 @@ export default function HRLayout({ children }) {
     const fetchStats = async () => {
       try {
         const res = await fetch(
-          "http://localhost:5000/api/notifications/unread-count",
+          "${API_BASE_URL}/api/notifications/unread-count",
           {
             headers: { Authorization: `Bearer ${token}` },
           },

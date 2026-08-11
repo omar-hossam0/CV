@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../utils/api.js";
 
 export default function HRMessages() {
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ export default function HRMessages() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:5000/api/notifications", {
+      const res = await fetch("${API_BASE_URL}/api/notifications", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -32,7 +33,7 @@ export default function HRMessages() {
   const handleMarkAsRead = async (notificationId) => {
     try {
       const token = localStorage.getItem("token");
-      await fetch(`http://localhost:5000/api/notifications/${notificationId}`, {
+      await fetch(`${API_BASE_URL}/api/notifications/${notificationId}`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -45,7 +46,7 @@ export default function HRMessages() {
   const handleMarkAllAsRead = async () => {
     try {
       const token = localStorage.getItem("token");
-      await fetch("http://localhost:5000/api/notifications/mark-all-read", {
+      await fetch("${API_BASE_URL}/api/notifications/mark-all-read", {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
       });
