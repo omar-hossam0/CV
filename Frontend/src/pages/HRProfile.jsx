@@ -68,7 +68,7 @@ export default function HRProfile() {
       const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
 
       // Fetch user profile from API
-      const profileRes = await fetch("${API_BASE_URL}/api/auth/me", {
+      const profileRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -101,11 +101,11 @@ export default function HRProfile() {
         }
       }
 
-      const jobsRes = await fetch("${API_BASE_URL}/api/jobs", {
+      const jobsRes = await fetch(`${API_BASE_URL}/api/jobs`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const candidatesRes = await fetch(
-        "${API_BASE_URL}/api/candidates",
+        `${API_BASE_URL}/api/candidates`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -136,7 +136,7 @@ export default function HRProfile() {
           totalInterviews: totalInterviewsCount,
         });
 
-        console.log("✅ HR Stats loaded:", {
+        console.log("✅ HR Stats loaded:`, {
           jobs: jobsData.count || jobsData.data?.length,
           candidates: candidatesData.count || candidatesData.data?.length,
           interviews: totalInterviewsCount,
@@ -177,7 +177,7 @@ export default function HRProfile() {
         formData.append("profileImage", imageFile);
 
         const uploadRes = await fetch(
-          "${API_BASE_URL}/api/auth/me/upload-image",
+          `${API_BASE_URL}/api/auth/me/upload-image`,
           {
             method: "POST",
             headers: {
@@ -213,7 +213,7 @@ export default function HRProfile() {
       }
 
       // Update profile info in backend
-      const updateRes = await fetch("${API_BASE_URL}/api/auth/me", {
+      const updateRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -334,7 +334,7 @@ export default function HRProfile() {
         </h1>
         <p className="text-slate-300 text-lg mb-2 font-medium">
           Member since{" "}
-          {new Date().toLocaleDateString("en-US", {
+          {new Date().toLocaleDateString("en-US`, {
             month: "short",
             day: "numeric",
             year: "numeric",
