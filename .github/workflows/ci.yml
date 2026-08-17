@@ -22,13 +22,15 @@ jobs:
   # ============================================================
   # Job 1: Frontend CI
   # Validates: dependency install, lint, production build
+  #
+  # This project uses npm workspaces (root package.json defines
+  # "workspaces": ["Backend", "Frontend"]). The lock file is at
+  # the repo root (package-lock.json), NOT inside Frontend/.
+  # Therefore we install from the root and run workspace commands.
   # ============================================================
   frontend-ci:
     name: Frontend CI
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: Frontend
 
     steps:
       - name: Checkout repository
@@ -39,33 +41,51 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: Frontend/package-lock.json
+          # The lock file lives at the repo root because this is
+          # an npm workspaces monorepo. There is no Frontend/package-lock.json.
+          cache-dependency-path: package-lock.json
 
+      # Install ALL workspace dependencies from the root.
+      # npm ci in a workspace monorepo must run from the root.
       - name: Install dependencies
         run: npm ci
 
       - name: Lint
         # Frontend has eslint configured via eslint.config.js
         # The "lint" script runs: eslint .
-        run: npm run lint
+        # Run via workspace syntax from the repo root.
+        run: npm run lint --workspace Frontend
 
       - name: Build for production
         # Vite production build — verifies the project compiles cleanly
-        run: npm run build
+        run: npm run build --workspace Frontend
 
   # ============================================================
   # Job 2: Backend CI
-  # Validates: dependency install, server module loads correctly
-  # Note: No test script exists in Backend/package.json.
-  #       test_endpoints.js and testDB.js are manual scripts
-  #       requiring a running MongoDB and auth tokens.
+  # Validates: dependency install, server startup with MongoDB
+  #
+  # The Backend has NO test or lint script. server.js calls
+  # connectDB() at module level, which requires MongoDB. We
+  # spin up a MongoDB service container so the server can
+  # actually start — this validates the real startup path.
   # ============================================================
   backend-ci:
     name: Backend CI
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: Backend
+
+    # MongoDB service container — provides a real MongoDB instance
+    # on localhost:27017 for the Backend to connect to.
+    services:
+      mongodb:
+        image: mongo:8
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --health-start-period 10s
 
     steps:
       - name: Checkout repository
@@ -80,14 +100,38 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        working-directory: Backend
 
-      # No "npm test" or "npm run lint" script exists in Backend/package.json.
-      # Instead, verify the server module can be imported without crashing.
-      # This catches syntax errors and missing dependency issues.
-      - name: Verify server module loads
-        run: node -e "import('./server.js').then(() => console.log('✅ Server module loaded successfully')).catch(e => { console.error('❌ Failed to load server:', e.message); process.exit(1); })"
+      # Validate that the Backend server can start successfully.
+      # server.js calls connectDB() at import time, then starts
+      # listening. We start it, wait for the "Server running" log,
+      # then kill it. A non-zero exit means startup failed.
+      - name: Start Backend server and verify startup
+        run: |
+          # Start the server in the background
+          node server.js &
+          SERVER_PID=$!
+          
+          # Wait up to 15 seconds for the server to start
+          for i in $(seq 1 15); do
+            if curl -s http://localhost:5000/ > /dev/null 2>&1; then
+              echo "✅ Backend server started successfully"
+              curl -s http://localhost:5000/ | head -c 500
+              echo
+              # Gracefully stop the server
+              kill $SERVER_PID 2>/dev/null
+              wait $SERVER_PID 2>/dev/null
+              exit 0
+            fi
+            sleep 1
+          done
+          
+          echo "❌ Backend server failed to start within 15 seconds"
+          kill $SERVER_PID 2>/dev/null
+          wait $SERVER_PID 2>/dev/null
+          exit 1
+        working-directory: Backend
         env:
-          # Provide minimal env so dotenv doesn't crash on missing values
           PORT: "5000"
           NODE_ENV: "test"
           MONGODB_URI: "mongodb://localhost:27017/ci_test_db"
