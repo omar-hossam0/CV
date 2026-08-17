@@ -1,0 +1,190 @@
+services:
+  mongodb:
+    image: mongo:8
+    container_name: mongodb
+    restart: unless-stopped
+
+    volumes:
+      - mongodb_data:/data/db
+
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+
+    container_name: backend
+    restart: unless-stopped
+
+    ports:
+      - "5000:5000"
+
+    environment:
+      PORT: 5000
+      NODE_ENV: development
+      MONGODB_URI: mongodb://mongodb:27017/cv_project_db
+      JWT_SECRET: ${JWT_SECRET}
+      # ML service URLs using Docker Compose service names
+      ML_HOST: http://model-1:5001
+      CV_CLASSIFIER_URL: http://model-2:5002
+      SKILL_MATCHER_URL: http://model-3:5003
+      CHAT_MODEL_URL: http://model-4:5004
+      GROQ_API_KEY: ${GROQ_API_KEY}
+
+    volumes:
+      - ./Backend:/app
+      - /app/node_modules
+
+    command: npm run dev
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+
+    container_name: frontend
+    restart: unless-stopped
+
+    ports:
+      - "5174:5174"
+
+    environment:
+      NODE_ENV: development
+
+    volumes:
+      - ./Frontend:/app
+      - /app/node_modules
+
+    command: npm run dev -- --host 0.0.0.0 --port 5174
+
+    depends_on:
+      backend:
+        condition: service_started
+
+  # ============================================================
+  # ML Model Services
+  # ============================================================
+
+  model-1:
+    build:
+      context: ./model-1-cv-matcher
+      dockerfile: Dockerfile
+
+    container_name: model-1-cv-matcher
+    restart: unless-stopped
+
+    ports:
+      - "5001:5001"
+
+    volumes:
+      # Bind-mount source code for development hot-reload
+      - ./model-1-cv-matcher/cv_job_matcher.py:/app/cv_job_matcher.py
+      # Named volume for pre-downloaded BERT model cache (88MB)
+      # This prevents the source-code bert-cache from hiding the image's cache
+      - model-1-bert-cache:/app/bert-cache
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  model-2:
+    build:
+      context: ./model-2-cv-classifier
+      dockerfile: Dockerfile
+
+    container_name: model-2-cv-classifier
+    restart: unless-stopped
+
+    ports:
+      - "5002:5002"
+
+    volumes:
+      # Bind-mount source code for development hot-reload
+      - ./model-2-cv-classifier/cv_classifier.py:/app/cv_classifier.py
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  model-3:
+    build:
+      context: ./model-3-skill-analyzer
+      dockerfile: Dockerfile
+
+    container_name: model-3-skill-analyzer
+    restart: unless-stopped
+
+    ports:
+      - "5003:5003"
+
+    volumes:
+      # Bind-mount source code for development hot-reload
+      - ./model-3-skill-analyzer/skill_analyzer.py:/app/skill_analyzer.py
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5003/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  model-4:
+    build:
+      context: ./model-4-chat-model
+      dockerfile: Dockerfile
+
+    container_name: model-4-chat-model
+    restart: unless-stopped
+
+    ports:
+      - "5004:5004"
+
+    environment:
+      GROQ_API_KEY: ${GROQ_API_KEY}
+
+    volumes:
+      # Bind-mount source code for development hot-reload
+      - ./model-4-chat-model/chat_model.py:/app/chat_model.py
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5004/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+volumes:
+  mongodb_data:
+  model-1-bert-cache:

@@ -83,8 +83,12 @@ class CVJobMatcherService:
             cache_dir = os.path.join(os.path.dirname(__file__), 'bert-cache')
             os.environ.setdefault('HF_HOME', cache_dir)
             os.environ.setdefault('SENTENCE_TRANSFORMERS_HOME', cache_dir)
-            os.environ.setdefault('TRANSFORMERS_OFFLINE', '1')
-            os.environ.setdefault('HF_HUB_OFFLINE', '1')
+            # Use offline mode only when the model is already cached. Otherwise
+            # allow a one-time download into the cache dir (named volume in
+            # Docker). Falls back to TF-IDF if the download fails.
+            if os.path.isdir(cache_dir) and os.listdir(cache_dir):
+                os.environ.setdefault('TRANSFORMERS_OFFLINE', '1')
+                os.environ.setdefault('HF_HUB_OFFLINE', '1')
 
             print("Loading BERT model (all-MiniLM-L6-v2)...")
             self.embedder = SentenceTransformer('all-MiniLM-L6-v2', cache_folder=cache_dir)

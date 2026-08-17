@@ -1,0 +1,13 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.git
+.gitignore
+.venv
+venv
+env
+.env
+*.md
+test_model.py
+test_model_fallback.py

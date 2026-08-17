@@ -43,19 +43,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/resumes", resumeRoutes);
 app.use("/api/ml", mlRoutes);
 
-// In production, serve the React built static files
-if (process.env.NODE_ENV === "production") {
-  // Fixed path: Frontend directory is at ../Frontend relative to Backend
-  const distPath = path.join(__dirname, "../Frontend/dist");
-  app.use(express.static(distPath));
-  // SPA fallback for client-side routing (after API routes, before errors)
-  app.get("*", (req, res) => {
-    // Prevent overriding API responses
-    if (req.path.startsWith("/api"))
-      return res.status(404).json({ message: "Not Found" });
-    res.sendFile(path.join(distPath, "index.html"));
-  });
-}
+// Note: Static files are served by the separate nginx frontend container.
 
 // Home Route
 app.get("/", (req, res) => {
