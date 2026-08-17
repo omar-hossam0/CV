@@ -120,7 +120,9 @@ jobs:
               echo
               # Gracefully stop the server
               kill $SERVER_PID 2>/dev/null
-              wait $SERVER_PID 2>/dev/null
+              # wait returns 143 (128+SIGTERM) when the killed process exits.
+              # || true prevents set -e from treating this as a failure.
+              wait $SERVER_PID 2>/dev/null || true
               exit 0
             fi
             sleep 1
@@ -128,7 +130,7 @@ jobs:
           
           echo "❌ Backend server failed to start within 15 seconds"
           kill $SERVER_PID 2>/dev/null
-          wait $SERVER_PID 2>/dev/null
+          wait $SERVER_PID 2>/dev/null || true
           exit 1
         working-directory: Backend
         env:
