@@ -7,65 +7,337 @@ on:
       - "feature/*"
 
 jobs:
-  build-all-images:
-    name: Build All Docker Images
+  # ============================================================
+  # FRONTEND - Test → Build → Healthcheck
+  # ============================================================
+  frontend-ci:
+    name: Frontend CI
     runs-on: ubuntu-24.04
-    env:
-      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create .env file for Docker Compose
+      # ---------- TEST ----------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Dependencies
+        working-directory: ./Frontend
+        run: npm install
+
+      - name: Lint
+        working-directory: ./Frontend
+        run: npm run lint
+
+      - name: Build React App (TypeScript Check)
+        working-directory: ./Frontend
+        run: npm run build
+
+      # ---------- BUILD ----------
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-docker-frontend-${{ hashFiles('docker-compose.dev.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-docker-frontend-
+
+      - name: Build Docker Image
         run: |
-          echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" > .env
-          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+          DOCKER_BUILDKIT=1 docker compose -f docker-compose.dev.yml build \
+            --build-arg BUILDKIT_INLINE_CACHE=1 frontend
 
-      - name: Build All Docker Images
-        run: docker compose -f docker-compose.dev.yml build
+      # ---------- HEALTHCHECK ----------
+      - name: Start Frontend Container
+        run: docker compose -f docker-compose.dev.yml up --no-deps -d frontend
 
-      - name: Start All Services
-        run: docker compose -f docker-compose.dev.yml up -d
-
-      - name: Wait for MongoDB to be healthy
+      - name: Healthcheck
         run: |
-          echo "Waiting for MongoDB healthcheck..."
+          echo "Waiting for frontend to be ready..."
+          curl --retry 15 --retry-delay 3 --retry-connrefused -sf http://localhost:5174 > /dev/null
+          echo "✅ Frontend is healthy on port 5174"
+
+      - name: Dump Logs on Failure
+        if: failure()
+        run: docker logs frontend 2>&1 || true
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.dev.yml down
+
+  # ============================================================
+  # BACKEND - Test → Build → Healthcheck
+  # ============================================================
+  backend-ci:
+    name: Backend CI
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---------- TEST ----------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Dependencies
+        working-directory: ./Backend
+        run: npm install
+
+      # ---------- BUILD ----------
+      - name: Create .env
+        run: |
+          echo "JWT_SECRET=ci-test-secret" > .env
+          echo "GROQ_API_KEY=ci-test-key" >> .env
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-docker-backend-${{ hashFiles('docker-compose.dev.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-docker-backend-
+
+      - name: Build Docker Image
+        run: |
+          DOCKER_BUILDKIT=1 docker compose -f docker-compose.dev.yml build \
+            --build-arg BUILDKIT_INLINE_CACHE=1 backend
+
+      # ---------- HEALTHCHECK ----------
+      - name: Start Backend + MongoDB
+        run: docker compose -f docker-compose.dev.yml up -d mongodb backend
+
+      - name: Wait for MongoDB Health
+        run: |
+          echo "Waiting for MongoDB..."
           for i in $(seq 1 30); do
             if docker inspect --format='{{.State.Health.Status}}' mongodb 2>/dev/null | grep -q healthy; then
-              echo "MongoDB is healthy!"
+              echo "✅ MongoDB is healthy"
               break
             fi
-            echo "Attempt $i/30 - waiting 5s..."
-            sleep 5
+            echo "  attempt $i/30..."
+            sleep 3
           done
 
-      - name: Wait for services to start
-        run: sleep 20
-
-      - name: Check All Container Status
+      - name: Healthcheck
         run: |
-          echo "=== Container Status ==="
-          docker compose -f docker-compose.dev.yml ps -a
-          echo ""
-          echo "=== Checking for crashed containers ==="
-          FAILED=0
-          for container in backend frontend model-1-cv-matcher model-2-cv-classifier model-3-skill-analyzer model-4-chat-model; do
-            STATUS=$(docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null || echo "not_found")
-            if [ "$STATUS" != "running" ]; then
-              echo "❌ $container is NOT running (status: $STATUS)"
-              echo "--- Logs for $container ---"
-              docker logs "$container" 2>&1 | tail -30
-              echo "---"
-              FAILED=1
-            else
-              echo "✅ $container is running"
-            fi
-          done
-          if [ "$FAILED" -eq 1 ]; then
-            echo "Some containers failed to start!"
-            exit 1
-          fi
+          echo "Waiting for backend API to respond..."
+          curl --retry 15 --retry-delay 3 --retry-connrefused -sf http://localhost:5000/health > /dev/null
+          echo "✅ Backend API is healthy on port 5000"
+
+      - name: Dump Logs on Failure
+        if: failure()
+        run: |
+          echo "=== Backend Logs ===" && docker logs backend 2>&1 || true
+          echo "=== MongoDB Logs ===" && docker logs mongodb 2>&1 || true
 
       - name: Cleanup
         if: always()
         run: docker compose -f docker-compose.dev.yml down -v
+
+  # ============================================================
+  # MODEL 1 - CV Matcher - Build → Healthcheck
+  # ============================================================
+  model-1-ci:
+    name: Model 1 CI (CV Matcher)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create .env
+        run: echo "GROQ_API_KEY=ci-test-key" > .env
+
+      # ---------- BUILD ----------
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-docker-model-1-${{ hashFiles('docker-compose.dev.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-docker-model-1-
+
+      - name: Build Docker Image
+        run: |
+          DOCKER_BUILDKIT=1 docker compose -f docker-compose.dev.yml build \
+            --build-arg BUILDKIT_INLINE_CACHE=1 model-1
+
+      # ---------- HEALTHCHECK ----------
+      - name: Start Model 1 + MongoDB
+        run: docker compose -f docker-compose.dev.yml up -d mongodb model-1
+
+      - name: Healthcheck
+        run: |
+          echo "Waiting for Model 1 to be ready..."
+          curl --retry 20 --retry-delay 5 --retry-connrefused -sf http://localhost:5001/health
+          echo "✅ Model 1 (CV Matcher) is healthy on port 5001"
+
+      - name: Dump Logs on Failure
+        if: failure()
+        run: docker logs model-1-cv-matcher 2>&1 || true
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.dev.yml down -v
+
+  # ============================================================
+  # MODEL 2 - CV Classifier - Build → Healthcheck
+  # ============================================================
+  model-2-ci:
+    name: Model 2 CI (CV Classifier)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create .env
+        run: echo "GROQ_API_KEY=ci-test-key" > .env
+
+      # ---------- BUILD ----------
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-docker-model-2-${{ hashFiles('docker-compose.dev.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-docker-model-2-
+
+      - name: Build Docker Image
+        run: |
+          DOCKER_BUILDKIT=1 docker compose -f docker-compose.dev.yml build \
+            --build-arg BUILDKIT_INLINE_CACHE=1 model-2
+
+      # ---------- HEALTHCHECK ----------
+      - name: Start Model 2 + MongoDB
+        run: docker compose -f docker-compose.dev.yml up -d mongodb model-2
+
+      - name: Healthcheck
+        run: |
+          echo "Waiting for Model 2 to be ready..."
+          curl --retry 20 --retry-delay 5 --retry-connrefused -sf http://localhost:5002/health
+          echo "✅ Model 2 (CV Classifier) is healthy on port 5002"
+
+      - name: Dump Logs on Failure
+        if: failure()
+        run: docker logs model-2-cv-classifier 2>&1 || true
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.dev.yml down -v
+
+  # ============================================================
+  # MODEL 3 - Skill Analyzer - Build → Healthcheck
+  # ============================================================
+  model-3-ci:
+    name: Model 3 CI (Skill Analyzer)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create .env
+        run: echo "GROQ_API_KEY=ci-test-key" > .env
+
+      # ---------- BUILD ----------
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-docker-model-3-${{ hashFiles('docker-compose.dev.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-docker-model-3-
+
+      - name: Build Docker Image
+        run: |
+          DOCKER_BUILDKIT=1 docker compose -f docker-compose.dev.yml build \
+            --build-arg BUILDKIT_INLINE_CACHE=1 model-3
+
+      # ---------- HEALTHCHECK ----------
+      - name: Start Model 3 + MongoDB
+        run: docker compose -f docker-compose.dev.yml up -d mongodb model-3
+
+      - name: Healthcheck
+        run: |
+          echo "Waiting for Model 3 to be ready..."
+          curl --retry 20 --retry-delay 5 --retry-connrefused -sf http://localhost:5003/health
+          echo "✅ Model 3 (Skill Analyzer) is healthy on port 5003"
+
+      - name: Dump Logs on Failure
+        if: failure()
+        run: docker logs model-3-skill-analyzer 2>&1 || true
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.dev.yml down -v
+
+  # ============================================================
+  # MODEL 4 - Chat Model - Build → Healthcheck
+  # ============================================================
+  model-4-ci:
+    name: Model 4 CI (Chat Model)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create .env
+        run: echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" > .env
+
+      # ---------- BUILD ----------
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-docker-model-4-${{ hashFiles('docker-compose.dev.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-docker-model-4-
+
+      - name: Build Docker Image
+        run: |
+          DOCKER_BUILDKIT=1 docker compose -f docker-compose.dev.yml build \
+            --build-arg BUILDKIT_INLINE_CACHE=1 model-4
+
+      # ---------- HEALTHCHECK ----------
+      - name: Start Model 4 + MongoDB
+        run: docker compose -f docker-compose.dev.yml up -d mongodb model-4
+
+      - name: Healthcheck
+        run: |
+          echo "Waiting for Model 4 to be ready..."
+          curl --retry 20 --retry-delay 5 --retry-connrefused -sf http://localhost:5004/health
+          echo "✅ Model 4 (Chat Model) is healthy on port 5004"
+
+      - name: Dump Logs on Failure
+        if: failure()
+        run: docker logs model-4-chat-model 2>&1 || true
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.dev.yml down -v
+
+  ci-summary:
+    name: CI Summary
+    runs-on: ubuntu-24.04
+    needs:
+      - frontend-ci
+      - backend-ci
+      - model-1-ci
+      - model-2-ci
+      - model-3-ci
+      - model-4-ci
+    steps:
+      - name: All checks passed
+        run: |
+          echo "========================================="
+          echo "✅ CI PIPELINE PASSED"
+          echo "========================================="
+          echo "Frontend:  ✅ PASSED"
+          echo "Backend:   ✅ PASSED"
+          echo "Model 1:   ✅ PASSED"
+          echo "Model 2:   ✅ PASSED"
+          echo "Model 3:   ✅ PASSED"
+          echo "Model 4:   ✅ PASSED"
+          echo "========================================="
