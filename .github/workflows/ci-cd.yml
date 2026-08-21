@@ -56,7 +56,7 @@ jobs:
       - name: Healthcheck
         run: |
           echo "Waiting for frontend to be ready..."
-          curl --retry 15 --retry-delay 3 --retry-connrefused -sf http://localhost:5174 > /dev/null
+          curl --retry 15 --retry-delay 3 --retry-connrefused -sf http://127.0.0.1:5174 > /dev/null
           echo "✅ Frontend is healthy on port 5174"
 
       - name: Dump Logs on Failure
@@ -125,7 +125,7 @@ jobs:
       - name: Healthcheck
         run: |
           echo "Waiting for backend API to respond..."
-          curl --retry 15 --retry-delay 3 --retry-connrefused -sf http://localhost:5000/health > /dev/null
+          curl --retry 15 --retry-delay 3 --retry-connrefused -sf http://127.0.0.1:5000/health > /dev/null
           echo "✅ Backend API is healthy on port 5000"
 
       - name: Dump Logs on Failure
@@ -172,7 +172,7 @@ jobs:
       - name: Healthcheck
         run: |
           echo "Waiting for Model 1 to be ready..."
-          curl --retry 20 --retry-delay 5 --retry-connrefused -sf http://localhost:5001/health
+          curl --retry 20 --retry-delay 5 --retry-connrefused -sf http://127.0.0.1:5001/health
           echo "✅ Model 1 (CV Matcher) is healthy on port 5001"
 
       - name: Dump Logs on Failure
@@ -217,7 +217,7 @@ jobs:
       - name: Healthcheck
         run: |
           echo "Waiting for Model 2 to be ready..."
-          curl --retry 20 --retry-delay 5 --retry-connrefused -sf http://localhost:5002/health
+          curl --retry 20 --retry-delay 5 --retry-connrefused -sf http://127.0.0.1:5002/health
           echo "✅ Model 2 (CV Classifier) is healthy on port 5002"
 
       - name: Dump Logs on Failure
@@ -262,7 +262,7 @@ jobs:
       - name: Healthcheck
         run: |
           echo "Waiting for Model 3 to be ready..."
-          curl --retry 20 --retry-delay 5 --retry-connrefused -sf http://localhost:5003/health
+          curl --retry 20 --retry-delay 5 --retry-connrefused -sf http://127.0.0.1:5003/health
           echo "✅ Model 3 (Skill Analyzer) is healthy on port 5003"
 
       - name: Dump Logs on Failure
@@ -307,7 +307,7 @@ jobs:
       - name: Healthcheck
         run: |
           echo "Waiting for Model 4 to be ready..."
-          curl --retry 20 --retry-delay 5 --retry-connrefused -sf http://localhost:5004/health
+          curl --retry 20 --retry-delay 5 --retry-connrefused -sf http://127.0.0.1:5004/health
           echo "✅ Model 4 (Chat Model) is healthy on port 5004"
 
       - name: Dump Logs on Failure

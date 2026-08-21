@@ -45,6 +45,11 @@ app.use("/api/ml", mlRoutes);
 
 // Note: Static files are served by the separate nginx frontend container.
 
+// Healthcheck Route
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "healthy", service: "backend" });
+});
+
 // Home Route
 app.get("/", (req, res) => {
   res.json({
