@@ -1,0 +1,159 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/*"
+
+jobs:
+  # ==========================================
+  # STAGING ENVIRONMENT JOBS
+  # ==========================================
+  backend-staging:
+    runs-on: ubuntu-24.04
+    environment: staging
+    env:
+      # Secrets
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      # Variables
+      NODE_ENV: ${{ vars.NODE_ENV }}
+      PORT: ${{ vars.PORT }}
+      CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
+      ML_HOST: ${{ vars.ML_HOST }}
+      CV_CLASSIFIER_URL: ${{ vars.CV_CLASSIFIER_URL }}
+      SKILL_MATCHER_URL: ${{ vars.SKILL_MATCHER_URL }}
+      CHAT_MODEL_URL: ${{ vars.CHAT_MODEL_URL }}
+      GROQ_API_URL: ${{ vars.GROQ_API_URL }}
+      GROQ_MODEL: ${{ vars.GROQ_MODEL }}
+      USE_PYTHON_MATCHER: ${{ vars.USE_PYTHON_MATCHER }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create .env file for Docker Compose
+        run: |
+          # We create a .env file so docker-compose picks up all the variables automatically
+          env > .env
+
+      - name: Build Backend Docker Image
+        run: docker-compose -f docker-compose.dev.yml build backend
+
+      - name: Test Backend Container Starts
+        run: |
+          docker-compose -f docker-compose.dev.yml up -d mongodb backend
+          sleep 10
+          docker-compose -f docker-compose.dev.yml ps
+          docker-compose -f docker-compose.dev.yml down
+
+  frontend-staging:
+    runs-on: ubuntu-24.04
+    environment: staging
+    env:
+      NODE_ENV: ${{ vars.NODE_ENV }}
+      CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create .env file for Docker Compose
+        run: env > .env
+
+      - name: Build Frontend Docker Image
+        run: docker-compose -f docker-compose.dev.yml build frontend
+
+      - name: Test Frontend Container Starts
+        run: |
+          docker-compose -f docker-compose.dev.yml up -d frontend
+          sleep 10
+          docker-compose -f docker-compose.dev.yml ps
+          docker-compose -f docker-compose.dev.yml down
+
+  models-staging:
+    runs-on: ubuntu-24.04
+    environment: staging
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GROQ_API_URL: ${{ vars.GROQ_API_URL }}
+      GROQ_MODEL: ${{ vars.GROQ_MODEL }}
+      USE_PYTHON_MATCHER: ${{ vars.USE_PYTHON_MATCHER }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create .env file for Docker Compose
+        run: env > .env
+
+      - name: Build Models Docker Images
+        run: docker-compose -f docker-compose.dev.yml build model-1 model-2 model-3 model-4
+
+  # ==========================================
+  # PRODUCTION ENVIRONMENT JOBS
+  # ==========================================
+  backend-production:
+    needs: [backend-staging]
+    runs-on: ubuntu-24.04
+    environment: production
+    env:
+      # Secrets
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      # Variables
+      NODE_ENV: ${{ vars.NODE_ENV }}
+      PORT: ${{ vars.PORT }}
+      CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
+      ML_HOST: ${{ vars.ML_HOST }}
+      CV_CLASSIFIER_URL: ${{ vars.CV_CLASSIFIER_URL }}
+      SKILL_MATCHER_URL: ${{ vars.SKILL_MATCHER_URL }}
+      CHAT_MODEL_URL: ${{ vars.CHAT_MODEL_URL }}
+      GROQ_API_URL: ${{ vars.GROQ_API_URL }}
+      GROQ_MODEL: ${{ vars.GROQ_MODEL }}
+      USE_PYTHON_MATCHER: ${{ vars.USE_PYTHON_MATCHER }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create .env file for Docker Compose
+        run: env > .env
+
+      - name: Build Backend Docker Image
+        run: docker-compose -f docker-compose.dev.yml build backend
+
+  frontend-production:
+    needs: [frontend-staging]
+    runs-on: ubuntu-24.04
+    environment: production
+    env:
+      NODE_ENV: ${{ vars.NODE_ENV }}
+      CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create .env file for Docker Compose
+        run: env > .env
+
+      - name: Build Frontend Docker Image
+        run: docker-compose -f docker-compose.dev.yml build frontend
+
+  models-production:
+    needs: [models-staging]
+    runs-on: ubuntu-24.04
+    environment: production
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GROQ_API_URL: ${{ vars.GROQ_API_URL }}
+      GROQ_MODEL: ${{ vars.GROQ_MODEL }}
+      USE_PYTHON_MATCHER: ${{ vars.USE_PYTHON_MATCHER }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create .env file for Docker Compose
+        run: env > .env
+
+      - name: Build Models Docker Images
+        run: docker-compose -f docker-compose.dev.yml build model-1 model-2 model-3 model-4
