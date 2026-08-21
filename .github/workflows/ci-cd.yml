@@ -7,162 +7,8 @@ on:
       - "feature/*"
 
 jobs:
-  frontend-ci:
-    name: Frontend CI
-    runs-on: ubuntu-24.04
-    env:
-      NODE_ENV: ${{ vars.NODE_ENV }}
-      CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Run Linter
-        run: npm run lint --workspace Frontend || echo "Linting passed or no linter configured"
-
-      - name: Build Frontend React App
-        run: npm run build --workspace Frontend
-
-      - name: Create .env file for Docker Compose
-        run: env > .env
-
-      - name: Build Frontend Docker Image
-        run: docker-compose -f docker-compose.dev.yml build frontend
-
-      - name: Test and Healthcheck Frontend
-        run: |
-          docker-compose -f docker-compose.dev.yml up -d frontend
-          sleep 15
-          if [ "$(docker inspect -f '{{.State.Status}}' frontend)" != "running" ]; then
-            docker logs frontend
-            exit 1
-          fi
-          curl --retry 5 --retry-delay 3 --retry-connrefused -f http://localhost:5174 || (docker logs frontend && exit 1)
-          docker-compose -f docker-compose.dev.yml down
-
-  backend-ci:
-    name: Backend CI
-    runs-on: ubuntu-24.04
-    env:
-      MONGODB_URI: ${{ secrets.MONGODB_URI }}
-      JWT_SECRET: ${{ secrets.JWT_SECRET }}
-      NODE_ENV: ${{ vars.NODE_ENV }}
-      PORT: ${{ vars.PORT }}
-      CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Run Backend Tests
-        run: echo "Run backend tests here (e.g., npm test --workspace Backend)"
-
-      - name: Create .env file for Docker Compose
-        run: env > .env
-
-      - name: Build Backend Docker Image
-        run: docker-compose -f docker-compose.dev.yml build backend
-
-      - name: Test and Healthcheck Backend
-        run: |
-          # Start mongodb along with backend for testing
-          docker-compose -f docker-compose.dev.yml up -d mongodb backend
-          sleep 20
-          if [ "$(docker inspect -f '{{.State.Status}}' backend)" != "running" ]; then
-            docker logs backend
-            exit 1
-          fi
-          curl --retry 5 --retry-delay 3 --retry-connrefused -f http://localhost:5000 || echo "No root endpoint, but container is running"
-          docker-compose -f docker-compose.dev.yml down
-
-  model-1-ci:
-    name: Model 1 CI (CV Matcher)
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Run Python Tests
-        run: echo "Run python tests here (e.g., pytest ./model-1-cv-matcher)"
-
-      - name: Create .env file for Docker Compose
-        run: env > .env
-
-      - name: Build Model 1 Docker Image
-        run: docker-compose -f docker-compose.dev.yml build model-1
-
-      - name: Test and Healthcheck Model 1
-        run: |
-          docker-compose -f docker-compose.dev.yml up -d mongodb model-1
-          sleep 45 # Wait for healthchecks
-          curl --retry 5 --retry-delay 5 --retry-connrefused -f http://localhost:5001/health || (docker logs model-1-cv-matcher && exit 1)
-          docker-compose -f docker-compose.dev.yml down
-
-  model-2-ci:
-    name: Model 2 CI (CV Classifier)
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Run Python Tests
-        run: echo "Run python tests here (e.g., pytest ./model-2-cv-classifier)"
-
-      - name: Create .env file for Docker Compose
-        run: env > .env
-
-      - name: Build Model 2 Docker Image
-        run: docker-compose -f docker-compose.dev.yml build model-2
-
-      - name: Test and Healthcheck Model 2
-        run: |
-          docker-compose -f docker-compose.dev.yml up -d mongodb model-2
-          sleep 35
-          curl --retry 5 --retry-delay 5 --retry-connrefused -f http://localhost:5002/health || (docker logs model-2-cv-classifier && exit 1)
-          docker-compose -f docker-compose.dev.yml down
-
-  model-3-ci:
-    name: Model 3 CI (Skill Analyzer)
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Run Python Tests
-        run: echo "Run python tests here (e.g., pytest ./model-3-skill-analyzer)"
-
-      - name: Create .env file for Docker Compose
-        run: env > .env
-
-      - name: Build Model 3 Docker Image
-        run: docker-compose -f docker-compose.dev.yml build model-3
-
-      - name: Test and Healthcheck Model 3
-        run: |
-          docker-compose -f docker-compose.dev.yml up -d mongodb model-3
-          sleep 35
-          curl --retry 5 --retry-delay 5 --retry-connrefused -f http://localhost:5003/health || (docker logs model-3-skill-analyzer && exit 1)
-          docker-compose -f docker-compose.dev.yml down
-
-  model-4-ci:
-    name: Model 4 CI (Chat Model)
+  build-all-images:
+    name: Build All Docker Images
     runs-on: ubuntu-24.04
     env:
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -170,19 +16,56 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Run Python Tests
-        run: echo "Run python tests here (e.g., pytest ./model-4-chat-model)"
-
       - name: Create .env file for Docker Compose
-        run: env > .env
-
-      - name: Build Model 4 Docker Image
-        run: docker-compose -f docker-compose.dev.yml build model-4
-
-      - name: Test and Healthcheck Model 4
         run: |
-          docker-compose -f docker-compose.dev.yml up -d mongodb model-4
-          sleep 35
-          curl --retry 5 --retry-delay 5 --retry-connrefused -f http://localhost:5004/health || (docker logs model-4-chat-model && exit 1)
-          docker-compose -f docker-compose.dev.yml down
+          echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" > .env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
 
+      - name: Build All Docker Images
+        run: docker compose -f docker-compose.dev.yml build
+
+      - name: Start All Services
+        run: docker compose -f docker-compose.dev.yml up -d
+
+      - name: Wait for MongoDB to be healthy
+        run: |
+          echo "Waiting for MongoDB healthcheck..."
+          for i in $(seq 1 30); do
+            if docker inspect --format='{{.State.Health.Status}}' mongodb 2>/dev/null | grep -q healthy; then
+              echo "MongoDB is healthy!"
+              break
+            fi
+            echo "Attempt $i/30 - waiting 5s..."
+            sleep 5
+          done
+
+      - name: Wait for services to start
+        run: sleep 20
+
+      - name: Check All Container Status
+        run: |
+          echo "=== Container Status ==="
+          docker compose -f docker-compose.dev.yml ps -a
+          echo ""
+          echo "=== Checking for crashed containers ==="
+          FAILED=0
+          for container in backend frontend model-1-cv-matcher model-2-cv-classifier model-3-skill-analyzer model-4-chat-model; do
+            STATUS=$(docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null || echo "not_found")
+            if [ "$STATUS" != "running" ]; then
+              echo "❌ $container is NOT running (status: $STATUS)"
+              echo "--- Logs for $container ---"
+              docker logs "$container" 2>&1 | tail -30
+              echo "---"
+              FAILED=1
+            else
+              echo "✅ $container is running"
+            fi
+          done
+          if [ "$FAILED" -eq 1 ]; then
+            echo "Some containers failed to start!"
+            exit 1
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.dev.yml down -v
