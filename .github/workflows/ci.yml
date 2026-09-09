@@ -11,12 +11,12 @@ permissions:
 env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-  FRONTEND_IMAGE: omarhossam2005/omar-cv-frontend
-  BACKEND_IMAGE: omarhossam2005/omar-cv-backend
-  MODEL_1_IMAGE: omarhossam2005/omar-cv-model-1
-  MODEL_2_IMAGE: omarhossam2005/omar-cv-model-2
-  MODEL_3_IMAGE: omarhossam2005/omar-cv-model-3
-  MODEL_4_IMAGE: omarhossam2005/omar-cv-model-4
+  FRONTEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME || 'cv' }}/omar-cv-frontend
+  BACKEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME || 'cv' }}/omar-cv-backend
+  MODEL_1_IMAGE: ${{ secrets.DOCKERHUB_USERNAME || 'cv' }}/omar-cv-model-1
+  MODEL_2_IMAGE: ${{ secrets.DOCKERHUB_USERNAME || 'cv' }}/omar-cv-model-2
+  MODEL_3_IMAGE: ${{ secrets.DOCKERHUB_USERNAME || 'cv' }}/omar-cv-model-3
+  MODEL_4_IMAGE: ${{ secrets.DOCKERHUB_USERNAME || 'cv' }}/omar-cv-model-4
 
 jobs:
   frontend:
