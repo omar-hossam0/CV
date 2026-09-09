@@ -1,0 +1,442 @@
+name: CV Matching CI
+
+on:
+  push:
+    branches:
+      - "**"
+
+permissions:
+  contents: read
+
+env:
+  FRONTEND_IMAGE: omarhossam2005/omar-cv-frontend
+  BACKEND_IMAGE: omarhossam2005/omar-cv-backend
+  MODEL_1_IMAGE: omarhossam2005/omar-cv-model-1
+  MODEL_2_IMAGE: omarhossam2005/omar-cv-model-2
+  MODEL_3_IMAGE: omarhossam2005/omar-cv-model-3
+  MODEL_4_IMAGE: omarhossam2005/omar-cv-model-4
+
+jobs:
+  frontend:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: Frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: Frontend
+        run: npm run lint
+
+      - name: Unit tests
+        working-directory: Frontend
+        run: npm run test:unit
+
+      - name: Component tests
+        working-directory: Frontend
+        run: npm run test:component
+
+      - name: Integration tests
+        working-directory: Frontend
+        run: npm run test:integration
+
+      - name: Build frontend
+        working-directory: Frontend
+        run: npm run build
+
+      - name: Build Docker image
+        run: docker build --tag "$FRONTEND_IMAGE:$GITHUB_SHA" ./Frontend
+
+      - name: Start frontend container
+        run: docker run --detach --name frontend-ci --publish 5174:5174 "$FRONTEND_IMAGE:$GITHUB_SHA"
+
+      - name: Validate frontend service
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:5174/ > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs frontend-ci
+          exit 1
+
+      - name: Stop frontend container
+        if: always()
+        run: docker rm --force frontend-ci || true
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push frontend image
+        run: docker push "$FRONTEND_IMAGE:$GITHUB_SHA"
+
+  backend:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:8
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 20s
+    env:
+      MONGODB_URI: mongodb://127.0.0.1:27017/cv_ci
+      JWT_SECRET: ci-only-jwt-secret
+      NODE_ENV: test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: Backend
+        run: npm ci
+
+      - name: Unit tests
+        working-directory: Backend
+        run: npm run test:unit
+
+      - name: Integration tests
+        working-directory: Backend
+        run: npm run test:integration
+
+      - name: MongoDB integration test
+        working-directory: Backend
+        run: |
+          node --input-type=module <<'NODE'
+          import mongoose from "mongoose";
+          await mongoose.connect(process.env.MONGODB_URI);
+          await mongoose.connection.db.command({ ping: 1 });
+          await mongoose.disconnect();
+          console.log("MongoDB integration check passed");
+          NODE
+
+      - name: Start backend for API tests
+        working-directory: Backend
+        run: |
+          npm start > "$RUNNER_TEMP/backend.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/backend.pid"
+
+      - name: Backend API and authorization tests
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:5000/health > /dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          node --input-type=module <<'NODE'
+          const health = await fetch("http://127.0.0.1:5000/health");
+          if (health.status !== 200 || (await health.json()).status !== "healthy") {
+            throw new Error("Backend health contract failed");
+          }
+          const root = await fetch("http://127.0.0.1:5000/");
+          if (root.status !== 200 || !(await root.json()).availableEndpoints) {
+            throw new Error("Backend root endpoint contract failed");
+          }
+          const protectedResponse = await fetch("http://127.0.0.1:5000/api/auth/me");
+          const protectedBody = await protectedResponse.json();
+          if (protectedResponse.status !== 401 || protectedBody.success !== false) {
+            throw new Error("Missing-token authorization contract failed");
+          }
+          console.log("Backend API and authorization checks passed");
+          NODE
+
+      - name: Stop backend API test process
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/backend.pid" ]; then kill "$(cat "$RUNNER_TEMP/backend.pid")" || true; fi
+          cat "$RUNNER_TEMP/backend.log" || true
+
+      - name: Build Docker image
+        run: docker build --tag "$BACKEND_IMAGE:$GITHUB_SHA" ./Backend
+
+      - name: Start backend container
+        run: |
+          docker run --detach --name backend-ci --network host \
+            --env MONGODB_URI="$MONGODB_URI" \
+            --env JWT_SECRET="$JWT_SECRET" \
+            --env NODE_ENV=test \
+            "$BACKEND_IMAGE:$GITHUB_SHA"
+
+      - name: Validate backend service
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:5000/health > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs backend-ci
+          exit 1
+
+      - name: Stop backend container
+        if: always()
+        run: docker rm --force backend-ci || true
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push backend image
+        run: docker push "$BACKEND_IMAGE:$GITHUB_SHA"
+
+  model-1:
+    name: Model 1 CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        working-directory: model-1-cv-matcher
+        run: pip install --upgrade pip && pip install -r requirements.txt
+      - name: Syntax & compilation check
+        working-directory: model-1-cv-matcher
+        run: python -m py_compile cv_job_matcher.py test_model.py test_model_fallback.py
+      - name: Unit and deterministic inference tests
+        working-directory: model-1-cv-matcher
+        run: python test_model_fallback.py
+      - name: Model loading and inference contract
+        working-directory: model-1-cv-matcher
+        run: |
+          TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1 python - <<'PY'
+          from cv_job_matcher import CVJobMatcherService
+          matcher = CVJobMatcherService()
+          result = matcher.find_top_matches("Python developer", ["Python API developer"], top_k=1)
+          assert len(result) == 1 and isinstance(result[0]["similarity_score"], float)
+          PY
+      - name: Build Docker image
+        run: docker build --tag "$MODEL_1_IMAGE:$GITHUB_SHA" ./model-1-cv-matcher
+      - name: Start model container
+        run: docker run --detach --name model-1-ci --publish 5001:5001 --env TRANSFORMERS_OFFLINE=1 --env HF_HUB_OFFLINE=1 "$MODEL_1_IMAGE:$GITHUB_SHA"
+      - name: Validate model service
+        run: |
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:5001/health > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          docker logs model-1-ci
+          exit 1
+      - name: Validate model API
+        run: |
+          curl --fail --silent --request POST http://127.0.0.1:5001/match-jobs \
+            --header 'Content-Type: application/json' \
+            --data '{"cv_text":"Python developer","job_descriptions":["Python API developer"],"top_k":1}' | grep -q '"success":true'
+      - name: Stop model container
+        if: always()
+        run: docker rm --force model-1-ci || true
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push model 1 image
+        run: docker push "$MODEL_1_IMAGE:$GITHUB_SHA"
+
+  model-2:
+    name: Model 2 CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        working-directory: model-2-cv-classifier
+        run: pip install --upgrade pip && pip install -r requirements.txt
+      - name: Syntax & compilation check
+        working-directory: model-2-cv-classifier
+        run: python -m py_compile cv_classifier.py test_model.py
+      - name: Unit and inference tests
+        working-directory: model-2-cv-classifier
+        run: python test_model.py
+      - name: Build Docker image
+        run: docker build --tag "$MODEL_2_IMAGE:$GITHUB_SHA" ./model-2-cv-classifier
+      - name: Start model container
+        run: docker run --detach --name model-2-ci --publish 5002:5002 "$MODEL_2_IMAGE:$GITHUB_SHA"
+      - name: Validate model service
+        run: |
+          for attempt in $(seq 1 45); do
+            if curl --fail --silent http://127.0.0.1:5002/health > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          docker logs model-2-ci
+          exit 1
+      - name: Validate model API
+        run: |
+          curl --fail --silent --request POST http://127.0.0.1:5002/classify \
+            --header 'Content-Type: application/json' \
+            --data '{"cv_text":"Software engineer with Python and REST API experience"}' | grep -q '"success":true'
+      - name: Stop model container
+        if: always()
+        run: docker rm --force model-2-ci || true
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push model 2 image
+        run: docker push "$MODEL_2_IMAGE:$GITHUB_SHA"
+
+  model-3:
+    name: Model 3 CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        working-directory: model-3-skill-analyzer
+        run: pip install --upgrade pip && pip install -r requirements.txt
+      - name: Syntax & compilation check
+        working-directory: model-3-skill-analyzer
+        run: python -m py_compile skill_analyzer.py test_model.py
+      - name: Unit and inference tests
+        working-directory: model-3-skill-analyzer
+        run: python test_model.py
+      - name: Build Docker image
+        run: docker build --tag "$MODEL_3_IMAGE:$GITHUB_SHA" ./model-3-skill-analyzer
+      - name: Start model container
+        run: docker run --detach --name model-3-ci --publish 5003:5003 "$MODEL_3_IMAGE:$GITHUB_SHA"
+      - name: Validate model service
+        run: |
+          for attempt in $(seq 1 45); do
+            if curl --fail --silent http://127.0.0.1:5003/health > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          docker logs model-3-ci
+          exit 1
+      - name: Validate model API
+        run: |
+          curl --fail --silent --request POST http://127.0.0.1:5003/analyze \
+            --header 'Content-Type: application/json' \
+            --data '{"cv_text":"Python developer with Docker experience","job_description":"Python and Docker developer"}' | grep -q '"success":true'
+      - name: Stop model container
+        if: always()
+        run: docker rm --force model-3-ci || true
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push model 3 image
+        run: docker push "$MODEL_3_IMAGE:$GITHUB_SHA"
+
+  model-4:
+    name: Model 4 CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        working-directory: model-4-chat-model
+        run: pip install --upgrade pip && pip install -r requirements.txt
+      - name: Syntax & compilation check
+        working-directory: model-4-chat-model
+        run: python -m py_compile chat_model.py test_model.py
+      - name: Unit and inference tests
+        working-directory: model-4-chat-model
+        run: python test_model.py
+      - name: Build Docker image
+        run: docker build --tag "$MODEL_4_IMAGE:$GITHUB_SHA" ./model-4-chat-model
+      - name: Start model container
+        run: docker run --detach --name model-4-ci --publish 5004:5004 "$MODEL_4_IMAGE:$GITHUB_SHA"
+      - name: Validate model service
+        run: |
+          for attempt in $(seq 1 45); do
+            if curl --fail --silent http://127.0.0.1:5004/health > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          docker logs model-4-ci
+          exit 1
+      - name: Validate model API
+        run: |
+          curl --fail --silent --request POST http://127.0.0.1:5004/chat \
+            --header 'Content-Type: application/json' \
+            --data '{"question":"How can I improve my resume?"}' | grep -q '"success":true'
+      - name: Stop model container
+        if: always()
+        run: docker rm --force model-4-ci || true
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push model 4 image
+        run: docker push "$MODEL_4_IMAGE:$GITHUB_SHA"
+
+  integration:
+    name: Full application integration CI
+    needs: [frontend, backend, model-1, model-2, model-3, model-4]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Start complete Compose environment
+        env:
+          JWT_SECRET: ci-only-jwt-secret
+        run: docker compose -f docker-compose.dev.yml up --detach --build
+      - name: Validate service communication
+        run: |
+          for port in 5000 5001 5002 5003 5004 5174; do
+            for attempt in $(seq 1 90); do
+              if curl --fail --silent "http://127.0.0.1:$port/health" > /dev/null 2>&1 || { [ "$port" = 5174 ] && curl --fail --silent "http://127.0.0.1:$port/" > /dev/null 2>&1; }; then
+                break
+              fi
+              sleep 2
+            done
+            curl --fail --silent "http://127.0.0.1:$port/$([ "$port" = 5174 ] && echo || echo health)" > /dev/null 2>&1 || { [ "$port" = 5174 ] || exit 1; }
+          done
+          curl --fail --silent http://127.0.0.1:5000/health > /dev/null
+          curl --fail --silent http://127.0.0.1:5001/health > /dev/null
+          curl --fail --silent http://127.0.0.1:5002/health > /dev/null
+          curl --fail --silent http://127.0.0.1:5003/health > /dev/null
+          curl --fail --silent http://127.0.0.1:5004/health > /dev/null
+          curl --fail --silent http://127.0.0.1:5174/ > /dev/null
+          docker compose -f docker-compose.dev.yml exec -T frontend node --input-type=module -e 'const response = await fetch("http://backend:5000/health"); if (!response.ok) process.exit(1);'
+          docker compose -f docker-compose.dev.yml exec -T backend node --input-type=module <<'NODE'
+          for (const port of [5001, 5002, 5003, 5004]) {
+            const response = await fetch(`http://model-${port - 5000}:${port}/health`);
+            if (!response.ok) throw new Error(`Model ${port} is unreachable from backend`);
+          }
+          NODE
+      - name: Show Compose diagnostics
+        if: failure()
+        run: docker compose -f docker-compose.dev.yml ps && docker compose -f docker-compose.dev.yml logs
+      - name: Stop complete Compose environment
+        if: always()
+        run: docker compose -f docker-compose.dev.yml down --volumes --remove-orphans

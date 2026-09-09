@@ -24,7 +24,7 @@ for p in result.get('top_5', []):
 
 assert result['predicted_job'] in ['Software Engineer', 'Backend Developer', 'Full Stack Developer'], \
     f"Expected software-related job, got: {result['predicted_job']}"
-print("✓ Test 1 PASSED")
+print("[OK] Test 1 PASSED")
 
 # Test 2: Data Scientist CV
 print("\n--- Test 2: Data Scientist CV ---")
@@ -39,7 +39,7 @@ print(f"Confidence: {result2['confidence']*100:.1f}%")
 
 assert result2['predicted_job'] in ['Data Scientist', 'Machine Learning Engineer'], \
     f"Expected data science job, got: {result2['predicted_job']}"
-print("✓ Test 2 PASSED")
+print("[OK] Test 2 PASSED")
 
 # Test 3: Frontend Developer CV
 print("\n--- Test 3: Frontend Developer CV ---")
@@ -53,7 +53,7 @@ print(f"Confidence: {result3['confidence']*100:.1f}%")
 
 assert result3['predicted_job'] in ['Frontend Developer', 'UI/UX Designer', 'Software Engineer'], \
     f"Expected frontend job, got: {result3['predicted_job']}"
-print("✓ Test 3 PASSED")
+print("[OK] Test 3 PASSED")
 
 # Test 4: DevOps Engineer CV
 print("\n--- Test 4: DevOps Engineer CV ---")
@@ -68,8 +68,8 @@ print(f"Confidence: {result4['confidence']*100:.1f}%")
 
 assert result4['predicted_job'] in ['DevOps Engineer', 'Cloud Engineer', 'Software Engineer'], \
     f"Expected DevOps job, got: {result4['predicted_job']}"
-print("✓ Test 4 PASSED")
+print("[OK] Test 4 PASSED")
 
 print("\n" + "=" * 60)
-print("✅ ALL TESTS PASSED FOR MODEL 2 (CV CLASSIFIER)")
+print("[SUCCESS] ALL TESTS PASSED FOR MODEL 2 (CV CLASSIFIER)")
 print("=" * 60)

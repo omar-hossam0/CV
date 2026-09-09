@@ -41,7 +41,7 @@ for i, r in enumerate(results):
 top_job_idx = results[0]['job_index']
 assert top_job_idx in [1, 2, 4], f"Expected backend/fullstack/devops job, got job {top_job_idx}"
 assert results[0]['similarity_score'] > 30, f"Expected > 30% match, got {results[0]['similarity_score']}"
-print("✓ Test 1 PASSED")
+print("[OK] Test 1 PASSED")
 
 # Test 2: Data Scientist CV
 print("\n--- Test 2: Data Scientist CV ---")
@@ -59,7 +59,7 @@ for i, r in enumerate(results2):
 
 # Data scientist CV should match data science job (index 3)
 assert results2[0]['similarity_score'] > 20, f"Expected > 20% match, got {results2[0]['similarity_score']}"
-print("✓ Test 2 PASSED")
+print("[OK] Test 2 PASSED")
 
 # Test 3: Frontend Developer CV
 print("\n--- Test 3: Frontend Developer CV ---")
@@ -75,8 +75,8 @@ for i, r in enumerate(results3):
     print(f"  {i+1}. Job {r['job_index']}: {r['similarity_score']:.1f}% - {job_descriptions[r['job_index']][:50]}...")
 
 assert results3[0]['similarity_score'] > 20, f"Expected > 20% match, got {results3[0]['similarity_score']}"
-print("✓ Test 3 PASSED")
+print("[OK] Test 3 PASSED")
 
 print("\n" + "=" * 60)
-print("✅ ALL TESTS PASSED FOR MODEL 1 (CV-JOB MATCHER)")
+print("[SUCCESS] ALL TESTS PASSED FOR MODEL 1 (CV-JOB MATCHER)")
 print("=" * 60)

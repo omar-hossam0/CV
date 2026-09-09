@@ -107,7 +107,7 @@ for i, r in enumerate(results):
     print(f"  {i+1}. Job {r['job_index']}: {r['similarity_score']:.1f}% (semantic: {r['semantic']:.1f}%, keyword: {r['keyword']:.1f}%) - {job_descriptions[r['job_index']][:50]}...")
 
 assert results[0]['similarity_score'] > 20, f"Expected > 20% match, got {results[0]['similarity_score']}"
-print("✓ Test 1 PASSED")
+print("[OK] Test 1 PASSED")
 
 # Test 2: Data Scientist CV
 print("\n--- Test 2: Data Scientist CV ---")
@@ -123,7 +123,7 @@ for i, r in enumerate(results2):
     print(f"  {i+1}. Job {r['job_index']}: {r['similarity_score']:.1f}% - {job_descriptions[r['job_index']][:50]}...")
 
 assert results2[0]['similarity_score'] > 15, f"Expected > 15% match, got {results2[0]['similarity_score']}"
-print("✓ Test 2 PASSED")
+print("[OK] Test 2 PASSED")
 
 # Test 3: Frontend Developer CV
 print("\n--- Test 3: Frontend Developer CV ---")
@@ -138,8 +138,8 @@ for i, r in enumerate(results3):
     print(f"  {i+1}. Job {r['job_index']}: {r['similarity_score']:.1f}% - {job_descriptions[r['job_index']][:50]}...")
 
 assert results3[0]['similarity_score'] > 15, f"Expected > 15% match, got {results3[0]['similarity_score']}"
-print("✓ Test 3 PASSED")
+print("[OK] Test 3 PASSED")
 
 print("\n" + "=" * 60)
-print("✅ ALL TESTS PASSED FOR MODEL 1 (CV-JOB MATCHER - TF-IDF)")
+print("[SUCCESS] ALL TESTS PASSED FOR MODEL 1 (CV-JOB MATCHER - TF-IDF)")
 print("=" * 60)

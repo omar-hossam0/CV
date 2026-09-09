@@ -25,7 +25,7 @@ print(f"Matched Skills: {result['matched_skills']}")
 print(f"Missing Skills: {[s['skill'] for s in result['missing_skills']]}")
 
 assert result['match_percentage'] >= 50, f"Expected >= 50% match, got {result['match_percentage']}%"
-print("✓ Test 1 PASSED")
+print("[OK] Test 1 PASSED")
 
 # Test 2: Poor match
 print("\n--- Test 2: Poor CV-Job Match ---")
@@ -42,7 +42,7 @@ print(f"Match Percentage: {result2['match_percentage']}%")
 print(f"Missing Skills: {[s['skill'] for s in result2['missing_skills']]}")
 
 assert result2['match_percentage'] < 50, f"Expected < 50% match, got {result2['match_percentage']}%"
-print("✓ Test 2 PASSED")
+print("[OK] Test 2 PASSED")
 
 # Test 3: Partial match
 print("\n--- Test 3: Partial Match ---")
@@ -64,7 +64,7 @@ print(f"Matched Skills: {result3['matched_skills']}")
 print(f"Missing Skills: {[s['skill'] for s in result3['missing_skills']]}")
 
 assert 0 <= result3['match_percentage'] <= 100, f"Percentage should be 0-100, got {result3['match_percentage']}%"
-print("✓ Test 3 PASSED")
+print("[OK] Test 3 PASSED")
 
 # Test 4: Exact match
 print("\n--- Test 4: High Match ---")
@@ -85,8 +85,8 @@ print(f"Match Percentage: {result4['match_percentage']}%")
 print(f"Matched Skills: {result4['matched_skills']}")
 
 assert result4['match_percentage'] >= 60, f"Expected >= 60% match, got {result4['match_percentage']}%"
-print("✓ Test 4 PASSED")
+print("[OK] Test 4 PASSED")
 
 print("\n" + "=" * 60)
-print("✅ ALL TESTS PASSED FOR MODEL 3 (SKILL ANALYZER)")
+print("[SUCCESS] ALL TESTS PASSED FOR MODEL 3 (SKILL ANALYZER)")
 print("=" * 60)
