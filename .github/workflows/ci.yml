@@ -407,13 +407,15 @@ jobs:
         if: always()
         run: docker rm --force model-4-ci || true
       - name: Log in to Docker Hub
+        id: dockerhub_login_model_4
         if: env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != ''
+        continue-on-error: true
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Push model 4 image
-        if: env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != ''
+        if: env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != '' && steps.dockerhub_login_model_4.outcome == 'success'
         run: docker push "$MODEL_4_IMAGE:$GITHUB_SHA"
 
   integration:
