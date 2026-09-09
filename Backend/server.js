@@ -131,7 +131,13 @@ if (missingEnvVars.length > 0) {
 }
 
 let server;
-if (process.env.NODE_ENV !== "test") {
+const isDirectRun = Boolean(
+  process.argv[1] &&
+    (fileURLToPath(import.meta.url) === process.argv[1] ||
+      process.argv[1].endsWith("server.js"))
+);
+
+if (isDirectRun || (!process.env.VITEST && process.env.NODE_ENV !== "test")) {
   server = app.listen(PORT, () => {
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);

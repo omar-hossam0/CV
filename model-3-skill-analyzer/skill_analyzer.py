@@ -170,12 +170,12 @@ def analyze():
         data = request.get_json()
 
         cv_text = data.get('cv_text', '')
-        job_desc = data.get('job_desc', '')
+        job_desc = data.get('job_desc') or data.get('job_description', '')
 
         if not cv_text or not job_desc:
             return jsonify({
                 'success': False,
-                'message': 'cv_text and job_desc are required'
+                'message': 'cv_text and job_desc (or job_description) are required'
             }), 400
 
         print(f"📄 Analyzing CV ({len(cv_text)} chars) against Job ({len(job_desc)} chars)")

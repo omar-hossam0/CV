@@ -29,7 +29,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: Frontend/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         working-directory: Frontend
@@ -77,12 +77,14 @@ jobs:
         run: docker rm --force frontend-ci || true
 
       - name: Log in to Docker Hub
+        if: "${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}"
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Push frontend image
+        if: "${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}"
         run: docker push "$FRONTEND_IMAGE:$GITHUB_SHA"
 
   backend:
@@ -139,6 +141,9 @@ jobs:
 
       - name: Start backend for API tests
         working-directory: Backend
+        env:
+          PORT: 5000
+          NODE_ENV: development
         run: |
           npm start > "$RUNNER_TEMP/backend.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/backend.pid"
@@ -182,7 +187,8 @@ jobs:
           docker run --detach --name backend-ci --network host \
             --env MONGODB_URI="$MONGODB_URI" \
             --env JWT_SECRET="$JWT_SECRET" \
-            --env NODE_ENV=test \
+            --env PORT=5000 \
+            --env NODE_ENV=development \
             "$BACKEND_IMAGE:$GITHUB_SHA"
 
       - name: Validate backend service
@@ -201,12 +207,14 @@ jobs:
         run: docker rm --force backend-ci || true
 
       - name: Log in to Docker Hub
+        if: "${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}"
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Push backend image
+        if: "${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}"
         run: docker push "$BACKEND_IMAGE:$GITHUB_SHA"
 
   model-1:
@@ -257,11 +265,13 @@ jobs:
         if: always()
         run: docker rm --force model-1-ci || true
       - name: Log in to Docker Hub
+        if: "${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}"
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Push model 1 image
+        if: "${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}"
         run: docker push "$MODEL_1_IMAGE:$GITHUB_SHA"
 
   model-2:
@@ -302,11 +312,13 @@ jobs:
         if: always()
         run: docker rm --force model-2-ci || true
       - name: Log in to Docker Hub
+        if: "${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}"
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Push model 2 image
+        if: "${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}"
         run: docker push "$MODEL_2_IMAGE:$GITHUB_SHA"
 
   model-3:
@@ -347,11 +359,13 @@ jobs:
         if: always()
         run: docker rm --force model-3-ci || true
       - name: Log in to Docker Hub
+        if: "${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}"
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Push model 3 image
+        if: "${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}"
         run: docker push "$MODEL_3_IMAGE:$GITHUB_SHA"
 
   model-4:
@@ -392,11 +406,13 @@ jobs:
         if: always()
         run: docker rm --force model-4-ci || true
       - name: Log in to Docker Hub
+        if: "${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}"
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Push model 4 image
+        if: "${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}"
         run: docker push "$MODEL_4_IMAGE:$GITHUB_SHA"
 
   integration:
