@@ -78,14 +78,16 @@ jobs:
         run: docker rm --force frontend-ci || true
 
       - name: Log in to Docker Hub
+        id: dockerhub_login_frontend
         if: env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != ''
+        continue-on-error: true
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Push frontend image
-        if: env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != ''
+        if: env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != '' && steps.dockerhub_login_frontend.outcome == 'success'
         run: docker push "$FRONTEND_IMAGE:$GITHUB_SHA"
 
   backend:
