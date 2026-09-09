@@ -261,7 +261,7 @@ jobs:
         run: |
           curl --fail --silent --request POST http://127.0.0.1:5001/match-jobs \
             --header 'Content-Type: application/json' \
-            --data '{"cv_text":"Python developer","job_descriptions":["Python API developer"],"top_k":1}' | grep -q '"success":true'
+            --data '{"cv_text":"Python developer","job_descriptions":["Python API developer"],"top_k":1}' | grep -E -q '"success"\s*:\s*true'
       - name: Stop model container
         if: always()
         run: docker rm --force model-1-ci || true
@@ -308,7 +308,7 @@ jobs:
         run: |
           curl --fail --silent --request POST http://127.0.0.1:5002/classify \
             --header 'Content-Type: application/json' \
-            --data '{"cv_text":"Software engineer with Python and REST API experience"}' | grep -q '"success":true'
+            --data '{"cv_text":"Software engineer with Python and REST API experience"}' | grep -E -q '"success"\s*:\s*true'
       - name: Stop model container
         if: always()
         run: docker rm --force model-2-ci || true
@@ -355,7 +355,7 @@ jobs:
         run: |
           curl --fail --silent --request POST http://127.0.0.1:5003/analyze \
             --header 'Content-Type: application/json' \
-            --data '{"cv_text":"Python developer with Docker experience","job_description":"Python and Docker developer"}' | grep -q '"success":true'
+            --data '{"cv_text":"Python developer with Docker experience","job_description":"Python and Docker developer"}' | grep -E -q '"success"\s*:\s*true'
       - name: Stop model container
         if: always()
         run: docker rm --force model-3-ci || true
@@ -402,7 +402,7 @@ jobs:
         run: |
           curl --fail --silent --request POST http://127.0.0.1:5004/chat \
             --header 'Content-Type: application/json' \
-            --data '{"question":"How can I improve my resume?"}' | grep -q '"success":true'
+            --data '{"question":"How can I improve my resume?"}' | grep -E -q '"success"\s*:\s*true'
       - name: Stop model container
         if: always()
         run: docker rm --force model-4-ci || true
