@@ -11,10 +11,10 @@
 
 services:
   # ============================================================
-  # Database: MongoDB 8
+  # Database: MongoDB 7
   # ============================================================
   mongodb:
-    image: mongo:8
+    image: mongo:7
     container_name: cv-mongodb-prod
     restart: always
     volumes:
