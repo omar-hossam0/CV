@@ -598,12 +598,18 @@ jobs:
     steps:
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          IMAGE_TAG: ${{ github.sha }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME || 'ubuntu' }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: ${{ secrets.EC2_PORT || 22 }}
+          envs: DOCKERHUB_USERNAME,DOCKERHUB_TOKEN,IMAGE_TAG
           script: |
+            set -e
             echo "🚀 Starting Continuous Deployment on AWS EC2..."
             
             # Navigate to the project directory
@@ -622,26 +628,51 @@ jobs:
             git reset --hard origin/${{ github.ref_name }}
             chmod +x scripts/*.sh 2>/dev/null || true
             
-            # 3. Pull latest pre-built images from Docker Hub (Fast & Zero build overhead on EC2!)
-            echo "🐳 Pulling latest production images from Docker Hub..."
-            docker compose -f docker-compose.prod.yml pull || echo "⚠️ Fallback to local build if pull fails"
+            # 3. Pull the exact images that passed CI from Docker Hub.
+            echo "🐳 Pulling CI-approved production images from Docker Hub..."
+            if [ -z "${DOCKERHUB_USERNAME:-}" ] || [ -z "${DOCKERHUB_TOKEN:-}" ]; then
+              echo "❌ DOCKERHUB_USERNAME and DOCKERHUB_TOKEN must be configured for CD"
+              exit 1
+            fi
+            printf '%s' "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+            IMAGE_TAG="$IMAGE_TAG" docker compose -f docker-compose.prod.yml pull
             
             # 4. Start production containers
             echo "🚀 Starting production containers..."
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            IMAGE_TAG="$IMAGE_TAG" docker compose -f docker-compose.prod.yml up -d --no-build --remove-orphans
             
-            # 5. Import database seed data if db_dump directory exists
-            if [ -d "db_dump" ] && [ -f "db_dump/manifest.json" ]; then
-              echo "📦 Importing database seed data from db_dump..."
+            # 5. Import the repository snapshot once, after the first production start.
+            # The marker prevents later deployments from overwriting live data.
+            DB_IMPORT_MARKER="$HOME/.cv-db-dump-imported"
+            if [ ! -f "$DB_IMPORT_MARKER" ] && [ -d "db_dump" ] && [ -f "db_dump/manifest.json" ]; then
+              echo "📦 Importing initial database snapshot from db_dump..."
               docker cp db_dump cv-backend-prod:/app/db_dump
-              docker exec -e MONGODB_URI=mongodb://mongodb:27017/cv_project_db cv-backend-prod node scripts/import_db.js 2>&1 || echo "⚠️ DB import skipped or failed"
+              docker cp Backend/scripts/import_db.js cv-backend-prod:/app/scripts/import_db.js
+              docker exec -e MONGODB_URI=mongodb://mongodb:27017/cv_project_db cv-backend-prod node scripts/import_db.js
+              touch "$DB_IMPORT_MARKER"
+              echo "✅ Initial database snapshot imported successfully"
+            elif [ -f "$DB_IMPORT_MARKER" ]; then
+              echo "ℹ️ Database snapshot already imported; preserving production data"
+            else
+              echo "❌ db_dump/manifest.json is missing; refusing to mark database as imported"
+              exit 1
             fi
+
+            # 6. Confirm that the deployed API is healthy and connected to MongoDB.
+            echo "🔎 Verifying deployed backend..."
+            for attempt in $(seq 1 30); do
+              if curl --fail --silent http://127.0.0.1:5000/health > /dev/null; then
+                break
+              fi
+              sleep 2
+            done
+            curl --fail --silent http://127.0.0.1:5000/health > /dev/null
             
-            # 6. Clean up old dangling images to preserve free tier disk space
+            # 7. Clean up old dangling images to preserve free tier disk space
             echo "🧹 Cleaning up unused Docker images..."
             docker image prune -f
             
-            # 7. Verify containers status
+            # 8. Verify containers status
             echo "📊 Verifying running containers..."
             docker compose -f docker-compose.prod.yml ps
             
@@ -658,6 +689,8 @@ jobs:
           - **Status:** \`$STATUS\`
           - **Target Server:** AWS EC2 (${{ secrets.EC2_HOST }})
           - **Triggered By:** \`${{ github.actor }}\` on branch \`${{ github.ref_name }}\`
+          - **Image Tag:** \`${{ github.sha }}\` (exact CI commit)
+          - **Database:** Initial repository snapshot imported once; subsequent deployments preserve the production volume
           - **Pre-deploy Backup:** \`~/backups/\` (Automated)
           - **Compose File:** \`docker-compose.prod.yml\`
           EOF
