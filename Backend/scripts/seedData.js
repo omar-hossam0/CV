@@ -1,9 +1,12 @@
 import mongoose from "mongoose";
+import dotenv from "dotenv";
 import Job from "../models/Job.js";
 import Candidate from "../models/Candidate.js";
 import User from "../models/User.js";
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/cv_project_db";
+dotenv.config();
+
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://mongodb:27017/cv_project_db";
 
 mongoose.connect(MONGODB_URI).then(async () => {
   try {

@@ -45,6 +45,7 @@ services:
   # Includes built-in JavaScript Hybrid Matcher & Skills Analyzer
   # ============================================================
   backend:
+    image: ${DOCKERHUB_USERNAME:-omarhossam0}/omar-cv-backend:latest
     build:
       context: ./Backend
       dockerfile: Dockerfile
@@ -85,6 +86,7 @@ services:
   # Frontend UI: React SPA (Production Nginx Reverse Proxy)
   # ============================================================
   frontend:
+    image: ${DOCKERHUB_USERNAME:-omarhossam0}/omar-cv-frontend:latest
     build:
       context: ./Frontend
       dockerfile: Dockerfile.prod

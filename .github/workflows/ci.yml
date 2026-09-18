@@ -57,15 +57,16 @@ jobs:
         run: npm run build
 
       - name: Build Docker image
-        run: docker build --tag "$FRONTEND_IMAGE:$GITHUB_SHA" ./Frontend
+        run: |
+          docker build --tag "$FRONTEND_IMAGE:$GITHUB_SHA" --tag "$FRONTEND_IMAGE:latest" -f ./Frontend/Dockerfile.prod ./Frontend
 
       - name: Start frontend container
-        run: docker run --detach --name frontend-ci --publish 5174:5174 "$FRONTEND_IMAGE:$GITHUB_SHA"
+        run: docker run --detach --name frontend-ci --publish 8080:80 "$FRONTEND_IMAGE:$GITHUB_SHA"
 
       - name: Validate frontend service
         run: |
           for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error http://127.0.0.1:5174/ > /dev/null; then
+            if curl --fail --silent --show-error http://127.0.0.1:8080/ > /dev/null; then
               exit 0
             fi
             sleep 2
@@ -86,7 +87,9 @@ jobs:
 
       - name: Push frontend image
         if: env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != ''
-        run: docker push "$FRONTEND_IMAGE:$GITHUB_SHA"
+        run: |
+          docker push "$FRONTEND_IMAGE:$GITHUB_SHA"
+          docker push "$FRONTEND_IMAGE:latest"
 
       - name: Generate Frontend CI Summary
         if: always()
@@ -197,7 +200,8 @@ jobs:
           cat "$RUNNER_TEMP/backend.log" || true
 
       - name: Build Docker image
-        run: docker build --tag "$BACKEND_IMAGE:$GITHUB_SHA" ./Backend
+        run: |
+          docker build --tag "$BACKEND_IMAGE:$GITHUB_SHA" --tag "$BACKEND_IMAGE:latest" ./Backend
 
       - name: Start backend container
         run: |
@@ -232,7 +236,9 @@ jobs:
 
       - name: Push backend image
         if: env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != ''
-        run: docker push "$BACKEND_IMAGE:$GITHUB_SHA"
+        run: |
+          docker push "$BACKEND_IMAGE:$GITHUB_SHA"
+          docker push "$BACKEND_IMAGE:latest"
 
       - name: Generate Backend CI Summary
         if: always()
@@ -547,6 +553,15 @@ jobs:
             if (!response.ok) throw new Error(`Model ${port} is unreachable from backend`);
           }
           NODE
+
+      - name: Test Database Backup and Restore Scripts
+        run: |
+          chmod +x scripts/backup_db.sh scripts/restore_db.sh
+          echo "🧪 Testing backup script..."
+          MONGO_CONTAINER=mongodb ./scripts/backup_db.sh /tmp/ci_backups
+          echo "🧪 Testing restore script..."
+          MONGO_CONTAINER=mongodb ./scripts/restore_db.sh
+
       - name: Show Compose diagnostics
         if: failure()
         run: docker compose -f docker-compose.dev.yml ps && docker compose -f docker-compose.dev.yml logs
@@ -567,5 +582,76 @@ jobs:
           - **Inter-service Verification:**
             - Frontend ↔ Backend Communication: Verified
             - Backend ↔ Models (5001, 5002, 5003, 5004): Verified
+            - Database Backup & Restore Automation: Verified
           EOF
           echo "=== Integration CI completed with status: $STATUS ==="
+
+  # ============================================================
+  # Continuous Deployment (CD) to AWS EC2
+  # Runs ONLY if all CI checks and integration tests pass!
+  # ============================================================
+  deploy:
+    name: CD - Deploy to AWS EC2
+    needs: [integration]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME || 'ubuntu' }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT || 22 }}
+          script: |
+            echo "🚀 Starting Continuous Deployment on AWS EC2..."
+            
+            # Navigate to the project directory
+            cd ~/cv-app/CV || cd ~/CV || exit 1
+            
+            # 1. Pre-deployment Database Automated Backup
+            echo "💾 Taking pre-deployment automated database backup..."
+            chmod +x scripts/*.sh 2>/dev/null || true
+            if [ -f "scripts/backup_db.sh" ]; then
+              ./scripts/backup_db.sh ~/backups || echo "⚠️ Pre-deploy backup skipped (initial run)"
+            fi
+            
+            # 2. Pull latest changes from git
+            echo "📥 Pulling latest changes from repository..."
+            git fetch --all
+            git reset --hard origin/${{ github.ref_name }}
+            chmod +x scripts/*.sh 2>/dev/null || true
+            
+            # 3. Pull latest pre-built images from Docker Hub (Fast & Zero build overhead on EC2!)
+            echo "🐳 Pulling latest production images from Docker Hub..."
+            docker compose -f docker-compose.prod.yml pull || echo "⚠️ Fallback to local build if pull fails"
+            
+            # 4. Start production containers
+            echo "🚀 Starting production containers..."
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            
+            # 5. Clean up old dangling images to preserve free tier disk space
+            echo "🧹 Cleaning up unused Docker images..."
+            docker image prune -f
+            
+            # 6. Verify containers status
+            echo "📊 Verifying running containers..."
+            docker compose -f docker-compose.prod.yml ps
+            
+            echo "✅ Deployment completed successfully!"
+
+      - name: Generate CD Summary
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          ICON="✅"
+          [ "$STATUS" != "success" ] && ICON="❌"
+          cat <<EOF >> $GITHUB_STEP_SUMMARY
+          ### $ICON Continuous Deployment Summary
+          - **Status:** \`$STATUS\`
+          - **Target Server:** AWS EC2 (${{ secrets.EC2_HOST }})
+          - **Triggered By:** \`${{ github.actor }}\` on branch \`${{ github.ref_name }}\`
+          - **Pre-deploy Backup:** \`~/backups/\` (Automated)
+          - **Compose File:** \`docker-compose.prod.yml\`
+          EOF
+

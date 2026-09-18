@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { initGridFS } from "./gridfs.js";
+import { autoSeedData } from "./autoSeed.js";
 
 const connectDB = async () => {
   try {
@@ -16,6 +17,9 @@ const connectDB = async () => {
 
     // Initialize GridFS after connection
     initGridFS();
+
+    // Automatically seed initial data if database is fresh and empty
+    await autoSeedData();
 
     mongoose.connection.on("connected", () => {
       console.log(`Mongoose connected to ${mongoUri}`);
