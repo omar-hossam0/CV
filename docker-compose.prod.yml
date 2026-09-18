@@ -1,0 +1,269 @@
+# ==============================================================================
+# Production Docker Compose for CV-Job Matching Platform
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Stop:
+#   docker compose -f docker-compose.prod.yml down
+# ==============================================================================
+
+services:
+  # ============================================================
+  # Database: MongoDB 8
+  # ============================================================
+  mongodb:
+    image: mongo:8
+    container_name: cv-mongodb-prod
+    restart: always
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+        reservations:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - cv-network
+
+  # ============================================================
+  # ML Model 1: CV-Job Matcher (FastAPI + PyTorch BERT)
+  # ============================================================
+  model-1:
+    build:
+      context: ./model-1-cv-matcher
+      dockerfile: Dockerfile
+    container_name: cv-model-1-prod
+    restart: always
+    # Production command without --reload and with controlled worker count
+    command: ["uvicorn", "cv_job_matcher:app", "--host", "0.0.0.0", "--port", "5001", "--workers", "1"]
+    volumes:
+      # Named volume for pre-downloaded BERT model weights cache (~88MB)
+      - model-1-bert-cache:/app/bert-cache
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1800M
+        reservations:
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - cv-network
+
+  # ============================================================
+  # ML Model 2: CV Classifier (FastAPI)
+  # ============================================================
+  model-2:
+    build:
+      context: ./model-2-cv-classifier
+      dockerfile: Dockerfile
+    container_name: cv-model-2-prod
+    restart: always
+    command: ["uvicorn", "cv_classifier:app", "--host", "0.0.0.0", "--port", "5002", "--workers", "2"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 300M
+        reservations:
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - cv-network
+
+  # ============================================================
+  # ML Model 3: Skill Analyzer (Flask)
+  # ============================================================
+  model-3:
+    build:
+      context: ./model-3-skill-analyzer
+      dockerfile: Dockerfile
+    container_name: cv-model-3-prod
+    restart: always
+    command: ["python", "skill_analyzer.py"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5003/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 300M
+        reservations:
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - cv-network
+
+  # ============================================================
+  # ML Model 4: Career Assistant Chat (FastAPI + Groq API)
+  # ============================================================
+  model-4:
+    build:
+      context: ./model-4-chat-model
+      dockerfile: Dockerfile
+    container_name: cv-model-4-prod
+    restart: always
+    command: ["uvicorn", "chat_model:app", "--host", "0.0.0.0", "--port", "5004", "--workers", "2"]
+    environment:
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5004/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 300M
+        reservations:
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - cv-network
+
+  # ============================================================
+  # Backend API: Node.js (Express)
+  # ============================================================
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: cv-backend-prod
+    restart: always
+    environment:
+      PORT: 5000
+      NODE_ENV: production
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/cv_project_db}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      # Internal Docker Network URLs for ML Services
+      ML_HOST: http://model-1:5001
+      CV_CLASSIFIER_URL: http://model-2:5002
+      SKILL_MATCHER_URL: http://model-3:5003
+      CHAT_MODEL_URL: http://model-4:5004
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      model-1:
+        condition: service_healthy
+      model-2:
+        condition: service_healthy
+      model-3:
+        condition: service_healthy
+      model-4:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5000/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 800M
+        reservations:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - cv-network
+
+  # ============================================================
+  # Frontend UI: React SPA (Production Nginx Reverse Proxy)
+  # ============================================================
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile.prod
+    container_name: cv-frontend-prod
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 200M
+        reservations:
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - cv-network
+
+# ============================================================
+# Persistent Named Volumes
+# ============================================================
+volumes:
+  mongodb_data:
+    name: cv_mongodb_data_prod
+  model-1-bert-cache:
+    name: cv_model1_bert_cache_prod
+
+# ============================================================
+# Isolated Bridge Network
+# ============================================================
+networks:
+  cv-network:
+    name: cv_network_prod
+    driver: bridge
