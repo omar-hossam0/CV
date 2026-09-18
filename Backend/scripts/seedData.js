@@ -3,7 +3,9 @@ import Job from "../models/Job.js";
 import Candidate from "../models/Candidate.js";
 import User from "../models/User.js";
 
-mongoose.connect("mongodb://localhost:27017/cv-job-matcher").then(async () => {
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/cv_project_db";
+
+mongoose.connect(MONGODB_URI).then(async () => {
   try {
     // Get an HR user (or create one)
     let hrUser = await User.findOne({ role: "hr" });
