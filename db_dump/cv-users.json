@@ -1,0 +1,42 @@
+[
+  {
+    "_id": {
+      "$oid": "6a798929bb9941ca05a5cc9b"
+    },
+    "name": "omar",
+    "email": "omar@gmail.com",
+    "password": "$2b$10$4M3NxIxPgg.Mwxpv3SA3C.0z9ZVTNUEiDRMrv6WahLSp.H6wQwLWi",
+    "role": "employee",
+    "avatar": null,
+    "profileImage": null,
+    "phone": null,
+    "savedJobs": [],
+    "createdAt": {
+      "$date": "2026-08-10T08:17:45.617Z"
+    },
+    "updatedAt": {
+      "$date": "2026-08-10T08:17:45.617Z"
+    },
+    "__v": 0
+  },
+  {
+    "_id": {
+      "$oid": "6a79898fbb9941ca05a5cccd"
+    },
+    "name": "ahmed",
+    "email": "ahmed@gmail.com",
+    "password": "$2b$10$o526CqyWYpL5CXXcxpE70eXxtTY5pAc70.p3Fk0J2.K051OjQdzXa",
+    "role": "hr",
+    "avatar": null,
+    "profileImage": null,
+    "phone": null,
+    "savedJobs": [],
+    "createdAt": {
+      "$date": "2026-08-10T08:19:27.893Z"
+    },
+    "updatedAt": {
+      "$date": "2026-08-10T08:19:27.893Z"
+    },
+    "__v": 0
+  }
+]

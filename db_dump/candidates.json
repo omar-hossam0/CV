@@ -1,0 +1,67 @@
+[
+  {
+    "_id": {
+      "$oid": "6a79b284b7b7ed1a54b94c0c"
+    },
+    "name": "omar",
+    "email": "omar@gmail.com",
+    "phone": "+20 155 588 8126",
+    "photo": "",
+    "university": "for Science and Technology",
+    "degree": "Engineering",
+    "skills": [
+      "Docker",
+      "Aws",
+      "Machine learning",
+      "Ai",
+      "Js",
+      "Node.js",
+      "Postgresql",
+      "Git",
+      "React",
+      "Mongodb",
+      "Mysql",
+      "Python",
+      "Javascript",
+      "Html",
+      "Css",
+      "Go",
+      "Kubernetes",
+      "Ruby",
+      "Azure",
+      "Gcp",
+      "Pytorch",
+      "Tensorflow",
+      "Data science",
+      "Pandas",
+      "Numpy"
+    ],
+    "experience": 20,
+    "experienceLevel": "Entry Level",
+    "resumeUrl": "6a7b0d7ce3cf947733bb4ba6",
+    "resumeText": "\n\nOmar Hossam\nPort Said, Egypt|amorhossam2005@gmail.com|+20 155 588 8126\nïLinkedIn|§GitHub\nSummary\nArtificial Intelligence student focused on DevOps and Cloud Engineering, with hands-on experience containerizing\nand deploying multi-service applications using Docker, Docker Compose, Nginx, GitHub Actions, and AWS.\nBuilt automated CI/CD workflows and deployed applications to Ubuntu-based VPS and AWS EC2 environments.  In-\nterested in Junior DevOps, Cloud Engineering, and Infrastructure roles.\nEducation\nDelta University for Science and Technology\n2023 – Present\nB.Sc. in Artificial Intelligence\n•  Relevant Coursework: Software Engineering, Data Structures, Algorithms, Database Systems, Computer Networks,\nMachine Learning\nProjects\nGOALIX — AI-Powered Sports Academy Management Platform\nGitHub\n•  Containerized a multi-service platform using Docker Compose, including Next.js, Node.js, PostgreSQL, Redis, a\ndatabase migration service, and Nginx.\n•  Built GitHub Actions pipelines for linting, code validation, dependency auditing, unit and integration tests, Docker\nimage builds, and publishing images to Docker Hub.\n•  Automated deployment to an Ubuntu-based Hostinger VPS using pre-built, Git SHA-tagged Docker images, migration-\nfirst execution, and post-deployment health checks.\n•  Configured Nginx as the public entry point for frontend, API, health endpoint, and WebSocket traffic while isolating\ninternal services from direct public access.\n•  Implemented persistent volumes, container health checks, private Docker networks, GitHub Actions secrets, and\nrollback-ready image versioning.\nCV Platform — Full Stack Recruitment SystemGitHub\n•  Deployed a Node.js, React, and MongoDB application on an Ubuntu-based AWS EC2 instance.\n•  Configured Nginx as a reverse proxy and used PM2 for Node.js process management.\n•  Managed SSH access, environment variables, application ports, and AWS security group rules.\n•  Troubleshot server, application, reverse proxy, database connection, and networking issues during deployment.\n•Tools:AWS EC2, Ubuntu, Nginx, PM2, Node.js, React, MongoDB, SSH\nAWS Control DashboardGitHub\n•  Built a dashboard for viewing and managing AWS resources and operational data.\n•  Worked with AWS IAM users, permissions, and access control concepts.\n•  Used Docker Compose to run application services and AWS RDS for managed database hosting.\n•Tools:Node.js, Docker Compose, AWS IAM, AWS RDS, MySQL\nOCR Smart Document Archiving SystemGitHub\n•  Built a smart document archiving system integrating a Next.js application with Python-based OCR processing.\n•  Containerized the application using Docker to provide a consistent development and deployment environment.\n•  Integrated AWS S3 for scalable document and file storage.\n•Tools:Docker, Python, Next.js, OCR, AWS S3\nTraining & Certifications\nTo be added.\n\nTechnical Skills\nDevOps & CI/CD:Docker, Docker Compose, GitHub Actions, Nginx, PM2, Docker Hub\nCloud & Infrastructure:AWS EC2, S3, IAM, RDS, Linux, Ubuntu, SSH, VPS Deployment\nSystems & Networking:TCP/IP Fundamentals, DNS, HTTP/HTTPS, Reverse Proxy, Ports, Linux Processes, File Per-\nmissions\nDatabases & Caching:PostgreSQL, Redis, MongoDB, MySQL\nVersion Control:Git, GitHub, Branching, Pull Requests\nProgramming & Development:Python, JavaScript, Node.js, Next.js, React, HTML, CSS",
+    "jobTitle": "Backend Developer",
+    "classificationResult": {
+      "jobTitle": "Backend Developer",
+      "confidence": 0.5,
+      "method": "keyword_matching",
+      "classifiedAt": {
+        "$date": "2026-08-11T11:54:36.852Z"
+      }
+    },
+    "extractedSkills": [],
+    "savedJobs": [],
+    "linkedinUrl": "",
+    "portfolioUrl": "",
+    "location": "",
+    "availability": "Immediate",
+    "applications": [],
+    "createdAt": {
+      "$date": "2026-08-10T11:14:12.040Z"
+    },
+    "updatedAt": {
+      "$date": "2026-08-11T11:54:36.854Z"
+    },
+    "__v": 4
+  }
+]

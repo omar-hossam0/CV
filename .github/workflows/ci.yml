@@ -630,11 +630,18 @@ jobs:
             echo "🚀 Starting production containers..."
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
             
-            # 5. Clean up old dangling images to preserve free tier disk space
+            # 5. Import database seed data if db_dump directory exists
+            if [ -d "db_dump" ] && [ -f "db_dump/manifest.json" ]; then
+              echo "📦 Importing database seed data from db_dump..."
+              docker cp db_dump cv-backend-prod:/app/db_dump
+              docker exec -e MONGODB_URI=mongodb://mongodb:27017/cv_project_db cv-backend-prod node scripts/import_db.js 2>&1 || echo "⚠️ DB import skipped or failed"
+            fi
+            
+            # 6. Clean up old dangling images to preserve free tier disk space
             echo "🧹 Cleaning up unused Docker images..."
             docker image prune -f
             
-            # 6. Verify containers status
+            # 7. Verify containers status
             echo "📊 Verifying running containers..."
             docker compose -f docker-compose.prod.yml ps
             

@@ -1,0 +1,18 @@
+{
+  "exportedAt": "2026-09-18T06:46:13.110Z",
+  "database": "cv_project_db",
+  "collections": {
+    "resumes.files": 15,
+    "applications": 0,
+    "companies": 0,
+    "chats": 0,
+    "analytics": 0,
+    "jobs": 3,
+    "resumes.chunks": 42,
+    "candidates": 1,
+    "matchresults": 0,
+    "notifications": 1,
+    "savedcandidates": 0,
+    "cv-users": 2
+  }
+}

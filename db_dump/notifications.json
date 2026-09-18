@@ -1,0 +1,28 @@
+[
+  {
+    "_id": {
+      "$oid": "6a79b503b7b7ed1a54b94cc6"
+    },
+    "userId": {
+      "$oid": "6a79898fbb9941ca05a5cccd"
+    },
+    "title": "New Job Application",
+    "message": "omar applied for AI/ML Engineer",
+    "type": "application",
+    "read": true,
+    "link": "/hr/jobs/6a79b497b7b7ed1a54b94c49/applicants",
+    "jobId": {
+      "$oid": "6a79b497b7b7ed1a54b94c49"
+    },
+    "applicantId": {
+      "$oid": "6a798929bb9941ca05a5cc9b"
+    },
+    "createdAt": {
+      "$date": "2026-08-10T11:24:51.253Z"
+    },
+    "updatedAt": {
+      "$date": "2026-08-11T07:25:44.087Z"
+    },
+    "__v": 0
+  }
+]
