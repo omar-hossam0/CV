@@ -30,15 +30,25 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # 1. Determine backup file
-BACKUP_FILE="$1"
+BACKUP_INPUT="$1"
+BACKUP_PARENT_DIR="${BACKUP_DIR:-$HOME/backups}"
+
+if [ -n "${BACKUP_INPUT}" ] && [ -d "${BACKUP_INPUT}" ]; then
+    BACKUP_PARENT_DIR="${BACKUP_INPUT}"
+    BACKUP_FILE=""
+elif [ -n "${BACKUP_INPUT}" ] && [ -f "${BACKUP_INPUT}" ]; then
+    BACKUP_FILE="${BACKUP_INPUT}"
+else
+    BACKUP_FILE=""
+fi
 
 if [ -z "${BACKUP_FILE}" ]; then
-    echo -e "${YELLOW}🔍 No backup file specified, searching for latest backup in ${BACKUP_PARENT_DIR}...${NC}"
+    echo -e "${YELLOW}🔍 Searching for latest backup in ${BACKUP_PARENT_DIR}...${NC}"
     BACKUP_FILE=$(find "${BACKUP_PARENT_DIR}" -type f -name "db_backup_*.tar.gz" 2>/dev/null | sort -r | head -n 1)
     
     if [ -z "${BACKUP_FILE}" ]; then
         echo -e "${RED}❌ Error: No backup files found in ${BACKUP_PARENT_DIR}!${NC}"
-        echo -e "Usage: $0 <path_to_backup.tar.gz>"
+        echo -e "Usage: $0 [path_to_backup.tar.gz | backup_directory]"
         exit 1
     fi
     echo -e "${GREEN}👉 Selected latest backup: ${BACKUP_FILE}${NC}"

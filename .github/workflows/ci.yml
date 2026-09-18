@@ -560,7 +560,7 @@ jobs:
           echo "🧪 Testing backup script..."
           MONGO_CONTAINER=mongodb ./scripts/backup_db.sh /tmp/ci_backups
           echo "🧪 Testing restore script..."
-          MONGO_CONTAINER=mongodb ./scripts/restore_db.sh
+          MONGO_CONTAINER=mongodb ./scripts/restore_db.sh /tmp/ci_backups
 
       - name: Show Compose diagnostics
         if: failure()
